@@ -1,7 +1,13 @@
 package com.receiptmgr.app.data.crypto
 
+import java.security.MessageDigest
+
 /**
- * UIA 協定金鑰派生演算法 (ApiCryptoKt.swapPairs 與衍生規則)
+ * 官方 ApiCryptoKt 金鑰與 IV 派生演算法核心
+ * 嚴格對齊 classes2.dex 官方二進位逆向成果：
+ * - swapPairs 字符對調
+ * - 64 字元字串拼接與 SHA-256 哈希生成 32-byte (256-bit) AES-GCM 金鑰 (lky)
+ * - 前後鹽末尾 6 字元拼接生成 12-byte GCM Nonce (liv)
  */
 object UiaKeyDerivation {
 
@@ -21,34 +27,46 @@ object UiaKeyDerivation {
     }
 
     /**
-     * 依據 UIA ldata 規範派生 256 位元 (32 位元組) AES 對稱金鑰：
-     * K_raw = part0 + part2 (32 chars)
-     * K_aes = swapPairs(K_raw)
+     * 派生 UIA ldata 之 256-bit AES 金鑰 (lky)
+     * K_concat = swapPairs(part2) + swapPairs(part0) + part0.reversed() + part2.reversed() (64 chars)
+     * K_aes = SHA-256(K_concat.toByteArray(UTF-8)) (32 bytes)
      */
     fun deriveLdataKey(part0: String, part2: String): ByteArray {
         require(part0.length == 16 && part2.length == 16) {
             "隨機鹽長度錯誤：預期各 16 字元，實際 part0=${part0.length}, part2=${part2.length}"
         }
-        val rawKey = part0 + part2
-        val aesKeyString = swapPairs(rawKey)
-        return aesKeyString.toByteArray(Charsets.UTF_8)
+        val concat = swapPairs(part2) + swapPairs(part0) + part0.reversed() + part2.reversed()
+        val md = MessageDigest.getInstance("SHA-256")
+        return md.digest(concat.toByteArray(Charsets.UTF_8))
     }
 
     /**
-     * 派生金鑰字串表示
+     * 派生金鑰之 64 碼十六進位字串表示 (利於單元測試與安全稽核記錄)
      */
-    fun deriveLdataKeyString(part0: String, part2: String): String {
+    fun deriveLdataKeyHex(part0: String, part2: String): String {
+        val keyBytes = deriveLdataKey(part0, part2)
+        return keyBytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * 派生 UIA ldata 之 12 位元組 GCM IV/Nonce (liv)
+     * liv = (part0.takeLast(6) + part2.takeLast(6)).toByteArray(UTF-8)
+     */
+    fun deriveLdataIv(part0: String, part2: String): ByteArray {
         require(part0.length == 16 && part2.length == 16) {
             "隨機鹽長度錯誤：預期各 16 字元，實際 part0=${part0.length}, part2=${part2.length}"
         }
-        return swapPairs(part0 + part2)
+        val ivString = part0.takeLast(6) + part2.takeLast(6)
+        return ivString.toByteArray(Charsets.UTF_8)
     }
 
     /**
-     * 預留下游 API tdata 派生金鑰 (利用登入簽發之 session.iv 進行 swapPairs 衍生)
+     * 預留 UIA tdata 端點金鑰派生 (ckey + skey)
      */
-    fun deriveTdataKey(sessionIv: String): ByteArray {
-        require(sessionIv.isNotBlank()) { "sessionIv 不可為空" }
-        return swapPairs(sessionIv).toByteArray(Charsets.UTF_8)
+    fun deriveTdataKey(ckey: String, skey: String): ByteArray {
+        require(ckey.length == 16 && skey.isNotBlank()) {
+            "ckey 必須為 16 字元且 skey 不可為空"
+        }
+        return (ckey + skey).toByteArray(Charsets.UTF_8)
     }
 }

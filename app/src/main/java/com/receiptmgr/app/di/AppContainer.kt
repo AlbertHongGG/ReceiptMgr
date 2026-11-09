@@ -1,8 +1,8 @@
 package com.receiptmgr.app.di
 
 import android.content.Context
+import com.receiptmgr.app.data.crypto.UiaGcmCipher
 import com.receiptmgr.app.data.crypto.UiaPacketCodec
-import com.receiptmgr.app.data.crypto.UiaSymmetricCipher
 import com.receiptmgr.app.data.device.DeviceEnvironmentProvider
 import com.receiptmgr.app.data.network.UiaAuthApiClient
 import com.receiptmgr.app.data.repository.AuthRepositoryImpl
@@ -57,7 +57,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val uiaPacketCodec: UiaPacketCodec by lazy {
-        UiaPacketCodec(cipher = UiaSymmetricCipher())
+        UiaPacketCodec(cipher = UiaGcmCipher())
     }
 
     override val uiaAuthApiClient: UiaAuthApiClient by lazy {

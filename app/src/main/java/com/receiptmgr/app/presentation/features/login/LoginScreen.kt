@@ -47,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -115,9 +114,9 @@ fun LoginScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedTextField(
-                            value = uiState.phone,
-                            onValueChange = { viewModel.onPhoneChange(it) },
-                            label = { Text("手機號碼 / 載具", fontSize = 13.sp) },
+                            value = uiState.account,
+                            onValueChange = { viewModel.onAccountChange(it) },
+                            label = { Text("手機號碼 / 帳號", fontSize = 13.sp) },
                             placeholder = { Text("09xxxxxxxx", fontSize = 13.sp) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -130,8 +129,8 @@ fun LoginScreen(
                                 )
                             },
                             trailingIcon = {
-                                if (uiState.phone.isNotEmpty()) {
-                                    IconButton(onClick = { viewModel.onPhoneChange("") }) {
+                                if (uiState.account.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.onAccountChange("") }) {
                                         Icon(
                                             imageVector = Icons.Outlined.RestartAlt,
                                             contentDescription = "清除",
@@ -182,9 +181,9 @@ fun LoginScreen(
                     }
                 }
 
-                // 2. 終端硬體指紋參數卡片 (完整 9 項參數)
+                // 2. 終端硬體指紋與協定參數卡片
                 SettingsSection(
-                    title = "終端參數"
+                    title = "終端協定參數"
                 ) {
                     Column(
                         modifier = Modifier
@@ -192,11 +191,12 @@ fun LoginScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // 設備 UUID (自動抓取 Android ID)
+                        // 設備 pdid (格式: a:ANDROID_ID)
                         OutlinedTextField(
-                            value = uiState.uuid,
-                            onValueChange = { viewModel.onUuidChange(it) },
-                            label = { Text("設備唯一識別碼 (UUID)", fontSize = 12.sp) },
+                            value = uiState.pdid,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("設備唯一識別碼 (pdid)", fontSize = 12.sp) },
                             singleLine = true,
                             leadingIcon = {
                                 Icon(
@@ -208,8 +208,8 @@ fun LoginScreen(
                             },
                             trailingIcon = {
                                 IconButton(onClick = {
-                                    clipboardManager.setText(AnnotatedString(uiState.uuid))
-                                    NotificationController.showSuccess("已複製 UUID")
+                                    clipboardManager.setText(AnnotatedString(uiState.pdid))
+                                    NotificationController.showSuccess("已複製 pdid")
                                 }) {
                                     Icon(
                                         imageVector = Icons.Outlined.ContentCopy,
@@ -242,7 +242,7 @@ fun LoginScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (showAdvancedParams) "收合進階終端參數" else "展開其他 6 項封包參數",
+                                text = if (showAdvancedParams) "收合進階協定參數" else "展開其他 6 項封包欄位 (ptoken / appver)",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = AppColors.secondary
@@ -251,17 +251,34 @@ fun LoginScreen(
 
                         AnimatedVisibility(visible = showAdvancedParams) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                OutlinedTextField(
-                                    value = uiState.appId,
-                                    onValueChange = { viewModel.onAppIdChange(it) },
-                                    label = { Text("客戶端代碼 (app_id)", fontSize = 12.sp) },
-                                    singleLine = true,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = AppColors.primary,
-                                        unfocusedBorderColor = borderColor
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = uiState.appver,
+                                        onValueChange = { viewModel.onAppverChange(it) },
+                                        label = { Text("App 版本 (appver)", fontSize = 12.sp) },
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = AppColors.primary,
+                                            unfocusedBorderColor = borderColor
+                                        )
+                                    )
+
+                                    OutlinedTextField(
+                                        value = uiState.appbn.toString(),
+                                        onValueChange = { viewModel.onAppbnChange(it) },
+                                        label = { Text("碼號 (appbn)", fontSize = 12.sp) },
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = AppColors.primary,
+                                            unfocusedBorderColor = borderColor
+                                        )
+                                    )
+                                }
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -270,7 +287,7 @@ fun LoginScreen(
                                     OutlinedTextField(
                                         value = uiState.deviceModel,
                                         onValueChange = { viewModel.onDeviceModelChange(it) },
-                                        label = { Text("設備型號", fontSize = 12.sp) },
+                                        label = { Text("設備型號 (model)", fontSize = 12.sp) },
                                         singleLine = true,
                                         modifier = Modifier.weight(1f),
                                         colors = OutlinedTextFieldDefaults.colors(
@@ -282,7 +299,7 @@ fun LoginScreen(
                                     OutlinedTextField(
                                         value = uiState.osVersion,
                                         onValueChange = { viewModel.onOsVersionChange(it) },
-                                        label = { Text("系統版本", fontSize = 12.sp) },
+                                        label = { Text("系統版本 (os_version)", fontSize = 12.sp) },
                                         singleLine = true,
                                         modifier = Modifier.weight(1f),
                                         colors = OutlinedTextFieldDefaults.colors(
@@ -292,34 +309,42 @@ fun LoginScreen(
                                     )
                                 }
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    OutlinedTextField(
-                                        value = uiState.appVersion,
-                                        onValueChange = { viewModel.onAppVersionChange(it) },
-                                        label = { Text("App 版本", fontSize = 12.sp) },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1f),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = AppColors.primary,
-                                            unfocusedBorderColor = borderColor
-                                        )
-                                    )
+                                OutlinedTextField(
+                                    value = uiState.androidId,
+                                    onValueChange = { viewModel.onAndroidIdChange(it) },
+                                    label = { Text("底層 Android ID", fontSize = 12.sp) },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AppColors.primary,
+                                        unfocusedBorderColor = borderColor
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
 
-                                    OutlinedTextField(
-                                        value = uiState.loginMod,
-                                        onValueChange = { viewModel.onLoginModChange(it) },
-                                        label = { Text("登入模式 (login_mod)", fontSize = 12.sp) },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1f),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = AppColors.primary,
-                                            unfocusedBorderColor = borderColor
-                                        )
-                                    )
-                                }
+                                OutlinedTextField(
+                                    value = uiState.ptoken,
+                                    onValueChange = { viewModel.onPtokenChange(it) },
+                                    label = { Text("FCM 推播權杖 (ptoken: ${uiState.ptoken.length} 字元)", fontSize = 12.sp) },
+                                    trailingIcon = {
+                                        IconButton(onClick = {
+                                            clipboardManager.setText(AnnotatedString(uiState.ptoken))
+                                            NotificationController.showSuccess("已複製 ptoken")
+                                        }) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.ContentCopy,
+                                                contentDescription = "複製",
+                                                modifier = Modifier.size(18.dp),
+                                                tint = textSecondary
+                                            )
+                                        }
+                                    },
+                                    maxLines = 2,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AppColors.primary,
+                                        unfocusedBorderColor = borderColor
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                         }
                     }
@@ -419,16 +444,26 @@ fun LoginScreen(
                                 0 -> {
                                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         CredentialItem(
-                                            label = "ss_me (發票查詢簽章金鑰)",
+                                            label = "carrier_code (手機條碼載具)",
+                                            value = session.carrierCode.ifEmpty { session.account },
+                                            highlight = true,
+                                            onCopy = {
+                                                val code = session.carrierCode.ifEmpty { session.account }
+                                                clipboardManager.setText(AnnotatedString(code))
+                                                NotificationController.showSuccess("已複製載具條碼")
+                                            }
+                                        )
+                                        CredentialItem(
+                                            label = "ssme (發票查詢簽章金鑰)",
                                             value = session.ssMe,
                                             highlight = true,
                                             onCopy = {
                                                 clipboardManager.setText(AnnotatedString(session.ssMe))
-                                                NotificationController.showSuccess("已複製 ss_me")
+                                                NotificationController.showSuccess("已複製 ssme")
                                             }
                                         )
                                         CredentialItem(
-                                            label = "token (UIA 權杖)",
+                                            label = "token (UIA 授權權杖)",
                                             value = session.token,
                                             onCopy = {
                                                 clipboardManager.setText(AnnotatedString(session.token))
@@ -444,6 +479,22 @@ fun LoginScreen(
                                             }
                                         )
                                         CredentialItem(
+                                            label = "skey (伺服器種子)",
+                                            value = session.skey,
+                                            onCopy = {
+                                                clipboardManager.setText(AnnotatedString(session.skey))
+                                                NotificationController.showSuccess("已複製 skey")
+                                            }
+                                        )
+                                        CredentialItem(
+                                            label = "iv (會話初始向量)",
+                                            value = session.iv,
+                                            onCopy = {
+                                                clipboardManager.setText(AnnotatedString(session.iv))
+                                                NotificationController.showSuccess("已複製 iv")
+                                            }
+                                        )
+                                        CredentialItem(
                                             label = "liat (登入時間戳)",
                                             value = "${session.liat} (有效剩餘: ${session.remainingDays} 天)",
                                             onCopy = {
@@ -452,15 +503,7 @@ fun LoginScreen(
                                             }
                                         )
                                         CredentialItem(
-                                            label = "svr_code",
-                                            value = session.svrCode
-                                        )
-                                        CredentialItem(
-                                            label = "iv",
-                                            value = session.iv
-                                        )
-                                        CredentialItem(
-                                            label = "app_id",
+                                            label = "appid",
                                             value = session.appId
                                         )
                                     }

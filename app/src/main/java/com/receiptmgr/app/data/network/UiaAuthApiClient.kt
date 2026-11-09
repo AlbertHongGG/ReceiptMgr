@@ -18,12 +18,15 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.ByteArrayInputStream
 import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPInputStream
 
 /**
  * UIA 登入認證網路客戶端
  * 負責發起 POST https://uia.einvoice.nat.gov.tw/mid/v1/login 請求，
- * 統整封包加密、HTTP 傳輸、錯誤碼分流與單點自動稽核記錄。
+ * 統整 AES-GCM 封包加密、HTTP 傳輸、GZIP 解壓縮、錯誤碼分流與單點自動稽核記錄。
  */
 class UiaAuthApiClient(
     private val apiLogManager: ApiLogManager,
@@ -56,17 +59,17 @@ class UiaAuthApiClient(
         var sealedPacket: SealedLdataPacket? = null
 
         try {
-            // 1. 即時注入時間戳並以 Byte 0 對齊方式封裝加密 ldata
+            // 1. 即時注入時間戳並以 AES-GCM 封裝加密三段式 ldata
             sealedPacket = packetCodec.sealLoginCommand(command)
             val requestDto = UiaLdataRequestDto(ldata = sealedPacket.ldataString)
             rawRequestBody = json.encodeToString(requestDto)
 
             // 2. 建構 HTTP/2 請求 (模擬官方行動客戶端 Headers)
+            // 注意：嚴禁手動設定 "Accept-Encoding: gzip"，以允許 OkHttp 的 BridgeInterceptor 自動執行透明 GZIP 解壓縮
             val httpRequest = Request.Builder()
                 .url(UIA_LOGIN_ENDPOINT)
                 .header("Host", "uia.einvoice.nat.gov.tw")
                 .header("User-Agent", "okhttp/5.3.0")
-                .header("Accept-Encoding", "gzip")
                 .header("Content-Type", "application/json; charset=utf-8")
                 .post(rawRequestBody.toRequestBody(JSON_MEDIA_TYPE))
                 .build()
@@ -78,7 +81,7 @@ class UiaAuthApiClient(
             // 3. 發送請求
             val response = okHttpClient.newCall(httpRequest).execute()
             httpStatus = response.code
-            rawResponseBody = response.body?.string().orEmpty()
+            rawResponseBody = extractResponseBodyString(response)
 
             if (!response.isSuccessful) {
                 val ex = UiaProtocolException.TransportFailure(
@@ -111,15 +114,16 @@ class UiaAuthApiClient(
                 throw ex
             }
 
-            // 5. 使用原 AES 金鑰以 Byte 0 對齊方式解密 payload
+            // 5. 使用同一組 AES 金鑰與 IV 解密伺服器下發之 payload
             val (sessionPayload, decryptedJson) = packetCodec.unsealSessionPayload(
                 encryptedPayloadBase64 = encryptedPayload,
-                aesKey = sealedPacket.aesKey
+                aesKey = sealedPacket.aesKey,
+                iv = sealedPacket.iv
             )
             decryptedPayloadString = decryptedJson
 
             val session = SessionCredentials(
-                phone = command.phone,
+                account = command.account,
                 payload = sessionPayload,
                 rawPayloadJson = decryptedJson,
                 rawServerResponseJson = rawResponseBody
@@ -136,15 +140,17 @@ class UiaAuthApiClient(
             val durationMs = System.currentTimeMillis() - startTime
             val requestAuditMap = mutableMapOf(
                 "endpoint" to "/mid/v1/login",
-                "phone" to command.phone,
-                "app_id" to command.appId,
-                "app_version" to command.appVersion,
-                "device_model" to command.deviceModel,
+                "account" to command.account,
+                "pdid" to command.pdid,
+                "device_model" to command.model,
                 "os_version" to command.osVersion,
-                "uuid" to command.uuid,
-                "login_mod" to command.loginMod
+                "appver" to command.appver,
+                "appbn" to command.appbn.toString(),
+                "lang" to command.lang,
+                "ccs" to command.ccs
             )
             sealedPacket?.let {
+                requestAuditMap["ckey"] = it.ckey
                 requestAuditMap["ldata"] = it.ldataString
                 requestAuditMap["plaintext_preview"] = it.plaintextJson
                 requestAuditMap["timestamp"] = it.timestamp.toString()
@@ -178,6 +184,36 @@ class UiaAuthApiClient(
                     isSuccess = (auditError == null)
                 )
             )
+        }
+    }
+
+    /**
+     * 安全提取回應主體文字，具備雙重 GZIP 防禦機制：
+     * 1. OkHttp 未自動解壓時依 Content-Encoding: gzip 進行解壓
+     * 2. 檢測前兩個位元組是否為 GZIP 魔數 (0x1F, 0x8B)，若是則自動解壓，杜絕亂碼
+     */
+    private fun extractResponseBodyString(response: Response): String {
+        val responseBody = response.body ?: return ""
+        val rawBytes = responseBody.bytes()
+        if (rawBytes.isEmpty()) return ""
+
+        val encoding = response.header("Content-Encoding")
+        val isGzipHeader = encoding?.equals("gzip", ignoreCase = true) == true
+        val isGzipMagic = rawBytes.size >= 2 &&
+                rawBytes[0] == 0x1F.toByte() &&
+                rawBytes[1] == 0x8B.toByte()
+
+        return if (isGzipHeader || isGzipMagic) {
+            try {
+                GZIPInputStream(ByteArrayInputStream(rawBytes)).bufferedReader(Charsets.UTF_8).use {
+                    it.readText()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "GZIP decompression fallback failed, using raw string: ${e.message}")
+                String(rawBytes, Charsets.UTF_8)
+            }
+        } else {
+            String(rawBytes, Charsets.UTF_8)
         }
     }
 }
