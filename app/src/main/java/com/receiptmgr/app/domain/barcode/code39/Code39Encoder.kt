@@ -12,7 +12,7 @@ import com.receiptmgr.app.domain.barcode.model.BarcodePattern
  * @param quietZoneUnits 兩側空白靜區 (Quiet Zone) 單位數（ISO 標準建議至少 10X）
  */
 class Code39Encoder(
-    private val wideUnits: Int = 3,
+    private val wideUnits: Int = 2,
     private val quietZoneUnits: Int = 10
 ) : BarcodeEncoder {
 

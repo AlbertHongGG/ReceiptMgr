@@ -19,7 +19,7 @@ data class ApiLogTabConfig(
 /**
  * 系統預設 API 日誌分頁型錄 (DefaultApiLogConfigs)。
  * 嚴格遵循「系統有什麼功能，才提供什麼 Tab」原則。
- * 現階段系統僅支援 UIA 帳號授權，因此僅提供「全部」與「帳號授權」兩個活躍分頁。
+ * 現階段支援：全部、帳號授權、發票清單、發票明細。
  */
 object DefaultApiLogConfigs {
     val allTabs: List<ApiLogTabConfig> = listOf(
@@ -40,6 +40,24 @@ object DefaultApiLogConfigs {
             emptyStateTitle = ApiCategoryType.AUTH.emptyTitle,
             emptyStateDescription = ApiCategoryType.AUTH.emptyDescription,
             emptyStateIcon = ApiCategoryType.AUTH.icon
+        ),
+        ApiLogTabConfig(
+            id = ApiCategoryType.INVOICE_LIST.id,
+            tabName = ApiCategoryType.INVOICE_LIST.displayName,
+            tabIcon = ApiCategoryType.INVOICE_LIST.icon,
+            category = ApiCategoryType.INVOICE_LIST,
+            emptyStateTitle = ApiCategoryType.INVOICE_LIST.emptyTitle,
+            emptyStateDescription = ApiCategoryType.INVOICE_LIST.emptyDescription,
+            emptyStateIcon = ApiCategoryType.INVOICE_LIST.icon
+        ),
+        ApiLogTabConfig(
+            id = ApiCategoryType.INVOICE_DETAIL.id,
+            tabName = ApiCategoryType.INVOICE_DETAIL.displayName,
+            tabIcon = ApiCategoryType.INVOICE_DETAIL.icon,
+            category = ApiCategoryType.INVOICE_DETAIL,
+            emptyStateTitle = ApiCategoryType.INVOICE_DETAIL.emptyTitle,
+            emptyStateDescription = ApiCategoryType.INVOICE_DETAIL.emptyDescription,
+            emptyStateIcon = ApiCategoryType.INVOICE_DETAIL.icon
         )
     )
 }

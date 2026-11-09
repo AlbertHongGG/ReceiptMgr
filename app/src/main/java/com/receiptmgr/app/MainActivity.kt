@@ -28,6 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.receiptmgr.app.presentation.features.home.HomeScreen
 import com.receiptmgr.app.presentation.features.home.HomeViewModel
+import com.receiptmgr.app.presentation.features.invoice.detail.InvoiceDetailScreen
+import com.receiptmgr.app.presentation.features.invoice.detail.InvoiceDetailViewModel
+import com.receiptmgr.app.presentation.features.invoice.list.InvoiceListScreen
+import com.receiptmgr.app.presentation.features.invoice.list.InvoiceListViewModel
 import com.receiptmgr.app.presentation.features.login.LoginScreen
 import com.receiptmgr.app.presentation.features.login.LoginViewModel
 import com.receiptmgr.app.presentation.features.log.ApiLogDetailScreen
@@ -120,6 +124,22 @@ class MainActivity : ComponentActivity() {
                                         }
                                         is AppRoute.NotificationLogs -> {
                                             SystemNotificationLogScreen(notificationLogManager = appContainer.notificationLogManager)
+                                        }
+                                        is AppRoute.InvoiceList -> {
+                                            val invoiceListViewModel = remember {
+                                                InvoiceListViewModel(appContainer.invoiceRepository)
+                                            }
+                                            InvoiceListScreen(viewModel = invoiceListViewModel)
+                                        }
+                                        is AppRoute.InvoiceDetail -> {
+                                            val invoiceDetailViewModel = remember(route.invNum, route.invDate) {
+                                                InvoiceDetailViewModel(
+                                                    invNum = route.invNum,
+                                                    invDate = route.invDate,
+                                                    invoiceRepository = appContainer.invoiceRepository
+                                                )
+                                            }
+                                            InvoiceDetailScreen(viewModel = invoiceDetailViewModel)
                                         }
                                     }
                                 }

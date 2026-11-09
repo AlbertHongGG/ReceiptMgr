@@ -26,4 +26,12 @@ sealed interface AppRoute {
     data object NotificationLogs : AppRoute {
         override val key: String = "route_notification_logs"
     }
+
+    data object InvoiceList : AppRoute {
+        override val key: String = "route_invoice_list"
+    }
+
+    data class InvoiceDetail(val invNum: String, val invDate: String) : AppRoute {
+        override val key: String = "route_invoice_detail_${invNum}_$invDate"
+    }
 }

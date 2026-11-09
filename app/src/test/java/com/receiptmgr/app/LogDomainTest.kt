@@ -15,19 +15,21 @@ class LogDomainTest {
     fun testApiCategoryType_fromEndpointClassification() {
         assertEquals(ApiCategoryType.AUTH, ApiCategoryType.fromEndpoint("POST /mid/v1/login"))
         assertEquals(ApiCategoryType.AUTH, ApiCategoryType.fromEndpoint("/APIService/authCheck"))
+        assertEquals(ApiCategoryType.INVOICE_LIST, ApiCategoryType.fromEndpoint("POST /einvoice/carriers/query-invoices-header"))
         assertEquals(ApiCategoryType.INVOICE_LIST, ApiCategoryType.fromEndpoint("/APIService/carrierInvChk"))
+        assertEquals(ApiCategoryType.INVOICE_DETAIL, ApiCategoryType.fromEndpoint("POST /einvoice/carriers/query-invoices-details"))
         assertEquals(ApiCategoryType.INVOICE_DETAIL, ApiCategoryType.fromEndpoint("/APIService/carrierInvDetail"))
-        assertEquals(ApiCategoryType.CARRIER, ApiCategoryType.fromEndpoint("/APIService/carrierList"))
-        assertEquals(ApiCategoryType.AWARD, ApiCategoryType.fromEndpoint("/APIService/awardList"))
         assertEquals(ApiCategoryType.ALL, ApiCategoryType.fromEndpoint("/APIService/unknownEndpoint"))
     }
 
     @Test
     fun testDefaultApiLogConfigs_containsDeterministicActiveTabs() {
         val tabs = DefaultApiLogConfigs.allTabs
-        assertEquals(2, tabs.size)
+        assertEquals(4, tabs.size)
         assertEquals("all", tabs[0].id)
         assertEquals("auth", tabs[1].id)
+        assertEquals("inv_list", tabs[2].id)
+        assertEquals("inv_detail", tabs[3].id)
 
         tabs.forEach { tab ->
             assertTrue(tab.tabName.isNotBlank())

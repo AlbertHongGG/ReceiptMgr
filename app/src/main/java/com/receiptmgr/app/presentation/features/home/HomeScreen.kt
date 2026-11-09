@@ -138,29 +138,20 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 2. 發票業務服務插槽 (SettingsSection 自帶 horizontal = 16.dp，無第三個選項)
+            // 2. 發票業務服務插槽 (SettingsSection 自帶 horizontal = 16.dp)
             SettingsSection(title = "發票業務") {
                 SettingsTile(
                     icon = Icons.AutoMirrored.Outlined.ReceiptLong,
                     iconColor = AppColors.primary,
                     title = "月分發票明細",
-                    subtitle = "Phase 2 待續：由 ss_me 請求 UPI 發票清單",
+                    subtitle = "查詢載具發票清單與品項明細",
                     onTap = {
                         if (sessionState is SessionState.Authenticated) {
-                            NotificationController.showInfo("發票清單 API 將於 Phase 2 開展實作")
+                            navigator.push(AppRoute.InvoiceList)
                         } else {
+                            NotificationController.showWarning("請先登入以啟用發票查詢")
                             navigator.push(AppRoute.Login)
                         }
-                    }
-                )
-                SettingsDivider()
-                SettingsTile(
-                    icon = Icons.Default.Pin,
-                    iconColor = AppColors.primary,
-                    title = "開獎號碼兌獎",
-                    subtitle = "Phase 2 待續：自動比對當期統一發票中獎號碼",
-                    onTap = {
-                        NotificationController.showInfo("開獎號碼比對功能將於 Phase 2 推出")
                     }
                 )
             }
