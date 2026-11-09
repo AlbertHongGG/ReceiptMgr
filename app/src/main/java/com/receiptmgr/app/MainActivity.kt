@@ -100,6 +100,9 @@ class MainActivity : ComponentActivity() {
                                         appContainer.deviceEnvironmentProvider
                                     )
                                 }
+                                val invoiceListViewModel = remember {
+                                    InvoiceListViewModel(appContainer.invoiceRepository)
+                                }
 
                                 CupertinoSwipeBackContainer(
                                     backStack = navState.backStack,
@@ -126,9 +129,6 @@ class MainActivity : ComponentActivity() {
                                             SystemNotificationLogScreen(notificationLogManager = appContainer.notificationLogManager)
                                         }
                                         is AppRoute.InvoiceList -> {
-                                            val invoiceListViewModel = remember {
-                                                InvoiceListViewModel(appContainer.invoiceRepository)
-                                            }
                                             InvoiceListScreen(viewModel = invoiceListViewModel)
                                         }
                                         is AppRoute.InvoiceDetail -> {

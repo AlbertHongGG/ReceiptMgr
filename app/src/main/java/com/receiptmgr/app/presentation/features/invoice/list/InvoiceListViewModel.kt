@@ -12,6 +12,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
+ * 發票清單捲動位置記錄實體
+ */
+data class ListScrollPosition(
+    val firstVisibleIndex: Int = 0,
+    val firstVisibleOffset: Int = 0
+)
+
+/**
  * 發票清單 UI 狀態模型 (強型別期別隔離架構)
  */
 data class InvoiceListUiState(
@@ -20,6 +28,7 @@ data class InvoiceListUiState(
     val periodErrors: Map<BillingPeriod, String> = emptyMap(),
     val loadingPeriods: Set<BillingPeriod> = emptySet(),
     val isOutdatedPeriods: Set<BillingPeriod> = emptySet(),
+    val scrollPositions: Map<BillingPeriod, ListScrollPosition> = emptyMap(),
     val isRefreshing: Boolean = false
 ) {
     /** 當前畫面唯一合法的發票摘要，嚴格綁定 currentPeriod */
@@ -133,5 +142,23 @@ class InvoiceListViewModel(
 
     fun refresh() {
         loadInvoices(period = _uiState.value.currentPeriod, isManualRefresh = true)
+    }
+
+    /**
+     * 儲存指定期別之清單捲動位置
+     */
+    fun saveScrollPosition(period: BillingPeriod, index: Int, offset: Int) {
+        _uiState.update { state ->
+            state.copy(
+                scrollPositions = state.scrollPositions + (period to ListScrollPosition(index, offset))
+            )
+        }
+    }
+
+    /**
+     * 取得指定期別之清單捲動位置
+     */
+    fun getScrollPosition(period: BillingPeriod): ListScrollPosition {
+        return _uiState.value.scrollPositions[period] ?: ListScrollPosition(0, 0)
     }
 }

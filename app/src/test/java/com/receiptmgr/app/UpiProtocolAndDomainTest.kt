@@ -312,4 +312,24 @@ class UpiProtocolAndDomainTest {
         org.junit.Assert.assertNull("01-02月絕不得洩漏 03-04月的資料", state.currentSummary)
         org.junit.Assert.assertNull("兼容屬性 summary 亦必須為 null", state.summary)
     }
+
+    @Test
+    fun `InvoiceListViewModel preserves scroll positions per period`() {
+        val periodJulAug = BillingPeriod(2026, 8)
+        val periodSepOct = BillingPeriod(2026, 10)
+
+        val initialPosition = com.receiptmgr.app.presentation.features.invoice.list.ListScrollPosition(
+            firstVisibleIndex = 14,
+            firstVisibleOffset = 88
+        )
+
+        val state = com.receiptmgr.app.presentation.features.invoice.list.InvoiceListUiState(
+            currentPeriod = periodJulAug,
+            scrollPositions = mapOf(periodJulAug to initialPosition)
+        )
+
+        assertEquals(14, state.scrollPositions[periodJulAug]?.firstVisibleIndex)
+        assertEquals(88, state.scrollPositions[periodJulAug]?.firstVisibleOffset)
+        assertEquals(null, state.scrollPositions[periodSepOct])
+    }
 }

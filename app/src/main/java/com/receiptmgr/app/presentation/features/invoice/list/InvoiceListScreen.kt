@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,8 +32,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -62,6 +65,26 @@ fun InvoiceListScreen(
 
     val textPrimary = if (isDark) AppColors.textPrimaryDark else AppColors.textPrimaryLight
     val textSecondary = if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
+
+    val currentPeriod = uiState.currentPeriod
+    val savedPosition = viewModel.getScrollPosition(currentPeriod)
+    val listState = rememberSaveable(
+        currentPeriod,
+        saver = LazyListState.Saver
+    ) {
+        LazyListState(
+            firstVisibleItemIndex = savedPosition.firstVisibleIndex,
+            firstVisibleItemScrollOffset = savedPosition.firstVisibleOffset
+        )
+    }
+
+    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
+        viewModel.saveScrollPosition(
+            period = currentPeriod,
+            index = listState.firstVisibleItemIndex,
+            offset = listState.firstVisibleItemScrollOffset
+        )
+    }
 
     ImmersiveScaffold {
         Column(
@@ -93,7 +116,7 @@ fun InvoiceListScreen(
                     .weight(1f)
             ) {
                 when {
-                    uiState.isCurrentLoading -> {
+                    uiState.isCurrentLoading && uiState.currentSummary == null -> {
                         InvoiceListSkeleton()
                     }
 
@@ -133,6 +156,7 @@ fun InvoiceListScreen(
                     else -> {
                         val invoices = uiState.currentSummary?.invoices ?: emptyList()
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize()
                         ) {
                             // 區域 3: 分區抬頭

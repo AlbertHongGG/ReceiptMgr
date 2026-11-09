@@ -18,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,7 +45,6 @@ import com.receiptmgr.app.presentation.components.ExactCenteredWithTrailingLayou
 import com.receiptmgr.app.presentation.components.ImmersiveScaffold
 import com.receiptmgr.app.presentation.components.NavigationBarsSafeSpacer
 import com.receiptmgr.app.presentation.components.PremiumEmptyState
-import com.receiptmgr.app.presentation.navigation.contract.LocalCupertinoNavigator
 import com.receiptmgr.app.presentation.notification.NotificationController
 import com.receiptmgr.app.presentation.theme.AppColors
 
@@ -57,7 +55,6 @@ fun InvoiceDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val isDark = isSystemInDarkTheme()
     val clipboardManager = LocalClipboardManager.current
-    val navigator = LocalCupertinoNavigator.current
 
     val textPrimary = if (isDark) AppColors.textPrimaryDark else AppColors.textPrimaryLight
     val textSecondary = if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
@@ -66,24 +63,8 @@ fun InvoiceDetailScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // 極簡頂部列：無標題、無副標，純淨懸浮返回按鈕
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { navigator.pop() },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
-                        tint = textPrimary
-                    )
-                }
-            }
+            // 頂部間距 (統一右滑返回，無上一頁按鈕)
+            Spacer(modifier = Modifier.height(16.dp))
 
             Box(
                 modifier = Modifier
@@ -107,7 +88,10 @@ fun InvoiceDetailScreen(
                         PremiumEmptyState(
                             title = "載入失敗",
                             description = uiState.errorMessage ?: "無法取得品項明細",
-                            icon = Icons.AutoMirrored.Outlined.ReceiptLong
+                            icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 32.dp)
                         )
                     }
 
