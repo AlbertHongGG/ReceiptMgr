@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -22,81 +21,66 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * 沉浸式下拉刪除抽屜容器 (SwipeToConfirmDrawer)。
+ * 1:1 復刻 LensWise 規範：
+ * 採用 24dp 頂部大圓角，頂部 40x4dp 指示條，置中 13sp Bold 標題，
+ * 內嵌具備「雙段文字反饋」與「垃圾桶圖標轉場」的 [SwipeToObliterateButton]。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SwipeToConfirmDrawer(
     title: String,
+    modifier: Modifier = Modifier,
     description: String? = null,
-    confirmText: String? = null,
-    sliderTitle: String = confirmText ?: "SLIDE TO CONFIRM",
-    confirmedTitle: String = "RELEASE",
+    sliderTitle: String = "SLIDE TO WIPE",
+    confirmedTitle: String = "RELEASE TO CLEAR",
     activeColor: Color = Color(0xFFEF4444),
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    SwipeToConfirmDrawerInternal(
-        title = title,
-        description = description,
-        sliderTitle = sliderTitle,
-        confirmedTitle = confirmedTitle,
-        activeColor = activeColor,
-        onConfirm = onConfirm,
-        onDismiss = onDismiss,
-        sheetState = sheetState
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SwipeToConfirmDrawerInternal(
-    title: String,
-    description: String? = null,
-    sliderTitle: String = "SLIDE TO CONFIRM",
-    confirmedTitle: String = "RELEASE",
-    activeColor: Color = Color(0xFFEF4444),
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    sheetState: SheetState
 ) {
     val isDark = isSystemInDarkTheme()
     val sheetBackgroundColor = if (isDark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
     val handleColor = if (isDark) Color.White.copy(alpha = 0.24f) else Color.Black.copy(alpha = 0.12f)
     val titleColor = if (isDark) Color.White.copy(alpha = 0.54f) else Color.Black.copy(alpha = 0.54f)
+    val descColor = if (isDark) Color.White.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.45f)
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = sheetBackgroundColor,
-        dragHandle = null
+        dragHandle = null,
+        modifier = modifier
     ) {
         Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(top = 16.dp, bottom = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 48.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .width(36.dp)
+                    .width(40.dp)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(handleColor)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = title.uppercase(),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.2.sp,
+                letterSpacing = 1.sp,
                 color = titleColor
             )
 
@@ -105,18 +89,20 @@ private fun SwipeToConfirmDrawerInternal(
                 Text(
                     text = description,
                     fontSize = 12.sp,
-                    color = if (isDark) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.65f),
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    color = descColor,
+                    lineHeight = 18.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            SwipeToConfirmButton(
-                onConfirmed = onConfirm,
+            SwipeToObliterateButton(
                 title = sliderTitle,
                 confirmedTitle = confirmedTitle,
-                activeColor = activeColor
+                activeColor = activeColor,
+                onConfirmed = onConfirm
             )
         }
     }

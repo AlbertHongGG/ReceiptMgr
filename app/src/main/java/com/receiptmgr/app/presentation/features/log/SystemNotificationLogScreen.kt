@@ -6,36 +6,30 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircleOutline
-import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,150 +37,127 @@ import androidx.compose.ui.unit.sp
 import com.receiptmgr.app.data.storage.NotificationLogManager
 import com.receiptmgr.app.domain.model.common.NotificationType
 import com.receiptmgr.app.domain.model.log.NotificationLogEntry
-import com.receiptmgr.app.presentation.components.ImmersiveScaffold
-import com.receiptmgr.app.presentation.components.NavigationBarsSafeSpacer
 import com.receiptmgr.app.presentation.components.PremiumConfigHeader
-import com.receiptmgr.app.presentation.components.PremiumEmptyState
-import com.receiptmgr.app.presentation.components.SwipeToConfirmDrawer
-import com.receiptmgr.app.presentation.theme.AppColors
-import kotlinx.coroutines.launch
+import com.receiptmgr.app.presentation.features.log.components.GenericLogViewerScaffold
 
+/**
+ * 系統通知日誌畫面 (SystemNotificationLogScreen)。
+ * 1:1 對齊 LensWise 規範：
+ * - 透過 GenericLogViewerScaffold 實現統一捲動佈局與毛玻璃懸浮垃圾桶。
+ * - 支援長按拖曳日誌卡片至底部垃圾桶即時銷毀單筆。
+ * - 底部垃圾桶點擊呼叫 SwipeToConfirmDrawer 雙段滑動抹除全數通知。
+ */
 @Composable
 fun SystemNotificationLogScreen(
-    notificationLogManager: NotificationLogManager
+    notificationLogManager: NotificationLogManager,
+    modifier: Modifier = Modifier
 ) {
-    val scope = rememberCoroutineScope()
     val isDark = isSystemInDarkTheme()
     val logs by notificationLogManager.logsFlow.collectAsState()
-    var showClearDrawer by remember { mutableStateOf(false) }
 
-    ImmersiveScaffold {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // 右滑手勢退棧，無上一頁按鈕
+    GenericLogViewerScaffold(
+        items = logs,
+        onDeleteSingle = { notificationLogManager.clearLog(it.file) },
+        onClearAll = { notificationLogManager.clearAllLogs() },
+        clearDrawerTitle = "CLEAR SYSTEM LOGS",
+        emptyMessage = "目前沒有系統通知日誌。",
+        modifier = modifier,
+        header = {
             PremiumConfigHeader(
                 title = "系統通知日誌",
-                subtitle = "NOTIFICATION HISTORY",
-                actions = {
-                    if (logs.isNotEmpty()) {
-                        IconButton(onClick = { showClearDrawer = true }) {
-                            Icon(
-                                imageVector = Icons.Outlined.DeleteOutline,
-                                contentDescription = "清空紀錄",
-                                tint = AppColors.danger
-                            )
-                        }
-                    }
-                }
+                subtitle = "SYSTEM NOTIFICATION LOG"
             )
-
-            if (logs.isEmpty()) {
-                PremiumEmptyState(
-                    title = "暫無通知日誌",
-                    subtitle = "系統發出提示時將自動收錄於此",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(logs, key = { it.id }) { item ->
-                        NotificationLogItemCard(
-                            log = item,
-                            onDelete = {
-                                scope.launch { notificationLogManager.clearLog(item.file) }
-                            }
-                        )
-                    }
-                }
-            }
-
-            NavigationBarsSafeSpacer()
-        }
-
-        if (showClearDrawer) {
-            SwipeToConfirmDrawer(
-                title = "清空通知日誌",
-                description = "此操作將刪除所有過往收錄的系統通知歷史檔案。",
-                confirmText = "確認清空",
-                onConfirm = {
-                    scope.launch {
-                        notificationLogManager.clearAllLogs()
-                        showClearDrawer = false
-                    }
-                },
-                onDismiss = { showClearDrawer = false }
+        },
+        itemContent = { entry, isDragging, itemModifier ->
+            NotificationLogCardContent(
+                entry = entry,
+                isDark = isDark,
+                modifier = itemModifier.alpha(if (isDragging) 0.3f else 1.0f)
             )
         }
-    }
+    )
 }
 
 @Composable
-private fun NotificationLogItemCard(
-    log: NotificationLogEntry,
-    onDelete: () -> Unit
+private fun NotificationLogCardContent(
+    entry: NotificationLogEntry,
+    isDark: Boolean,
+    modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
-    val shape = RoundedCornerShape(14.dp)
-    val cardBg = if (isDark) AppColors.surfaceDark else Color.White
-    val borderColor = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
-
-    val (typeColor, typeIcon) = when (log.type) {
-        NotificationType.SUCCESS -> Pair(AppColors.primary, Icons.Outlined.CheckCircleOutline)
-        NotificationType.ERROR -> Pair(AppColors.danger, Icons.Outlined.ErrorOutline)
-        NotificationType.WARNING -> Pair(AppColors.secondary, Icons.Outlined.WarningAmber)
-        NotificationType.INFO -> Pair(AppColors.secondary, Icons.Outlined.Info)
+    val (typeColor, typeIcon) = when (entry.type) {
+        NotificationType.SUCCESS -> Pair(Color(0xFF10B981), Icons.Outlined.CheckCircleOutline)
+        NotificationType.ERROR -> Pair(Color(0xFFEF4444), Icons.Outlined.ErrorOutline)
+        NotificationType.WARNING -> Pair(Color(0xFFF59E0B), Icons.Outlined.WarningAmber)
+        NotificationType.INFO -> Pair(Color(0xFF3B82F6), Icons.Outlined.Info)
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(cardBg)
-            .border(1.dp, borderColor, shape)
-            .padding(14.dp)
+            .padding(bottom = 12.dp)
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = if (isDark) Color.Black.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.06f),
+                spotColor = if (isDark) Color.Black.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.14f)
+            )
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (isDark) Color(0xFF1C1C1E) else Color.White)
+            .border(
+                width = 1.dp,
+                color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .padding(20.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                imageVector = typeIcon,
-                contentDescription = log.type.name,
-                tint = typeColor,
-                modifier = Modifier.size(22.dp)
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = log.message,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isDark) Color.White.copy(alpha = 0.9f) else AppColors.textPrimaryLight
-                )
-                Text(
-                    text = log.timestampStr,
-                    fontSize = 11.sp,
-                    color = AppColors.secondary
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(typeColor.copy(alpha = 0.10f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = typeIcon,
+                    contentDescription = entry.type.name,
+                    tint = typeColor,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.DeleteOutline,
-                    contentDescription = "刪除",
-                    tint = AppColors.secondary,
-                    modifier = Modifier.size(16.dp)
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = entry.type.name.uppercase(),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = typeColor
+                    )
+
+                    Text(
+                        text = entry.timestampStr,
+                        fontSize = 11.sp,
+                        color = if (isDark) Color.White.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.35f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = entry.message,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    color = if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF1E293B)
                 )
             }
         }

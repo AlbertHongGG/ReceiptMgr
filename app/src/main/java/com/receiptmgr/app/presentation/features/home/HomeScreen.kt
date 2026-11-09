@@ -95,91 +95,83 @@ fun HomeScreen(
                 }
             )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 1. 核心載具條碼大卡 (Carrier Barcode Chassis)
-                when (val state = sessionState) {
-                    is SessionState.Authenticated -> {
-                        CarrierBarcodeCard(
-                            session = state.credentials,
-                            onCopyBarcode = {
-                                clipboardManager.setText(AnnotatedString(state.credentials.phone))
-                                NotificationController.showSuccess("已複製載具條碼")
-                            }
-                        )
-                    }
+            Spacer(modifier = Modifier.height(12.dp))
 
-                    is SessionState.Expired -> {
-                        UnauthenticatedBarcodeCard(
-                            title = "會話已過期",
-                            subtitle = "帳號 ${state.credentials.phone}，請重新登入取得新金鑰",
-                            onLogin = { navigator.push(AppRoute.Login) }
-                        )
-                    }
-
-                    is SessionState.Unauthenticated -> {
-                        UnauthenticatedBarcodeCard(
-                            title = "尚未綁定載具",
-                            subtitle = "登入以啟用載具條碼與 ss_me 會話簽章金鑰",
-                            onLogin = { navigator.push(AppRoute.Login) }
-                        )
-                    }
-                }
-
-                // 2. 會話簽署健康度底盤 (Session Health Chassis)
-                if (sessionState is SessionState.Authenticated) {
-                    val session = (sessionState as SessionState.Authenticated).credentials
-                    SessionHealthChassis(
-                        session = session,
-                        onInspectPayload = { navigator.push(AppRoute.Login) },
-                        onCopyKey = {
-                            clipboardManager.setText(AnnotatedString(session.ssMe))
-                            NotificationController.showSuccess("已複製 ss_me 簽署金鑰")
-                        }
+            // 1. 核心載具條碼大卡 (Carrier Barcode Chassis) - 統一左右 16.dp 外距展開
+            when (val state = sessionState) {
+                is SessionState.Authenticated -> {
+                    CarrierBarcodeCard(
+                        session = state.credentials,
+                        onCopyBarcode = {
+                            clipboardManager.setText(AnnotatedString(state.credentials.phone))
+                            NotificationController.showSuccess("已複製載具條碼")
+                        },
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
 
-                // 3. 發票業務服務插槽 (Phase 2 Entry Slots)
-                SettingsSection(title = "發票業務") {
-                    SettingsTile(
-                        icon = Icons.AutoMirrored.Outlined.ReceiptLong,
-                        iconColor = AppColors.primary,
-                        title = "月分發票明細",
-                        subtitle = "Phase 2 待續：由 ss_me 請求 UPI 發票清單",
-                        onTap = {
-                            if (sessionState is SessionState.Authenticated) {
-                                NotificationController.showInfo("發票清單 API 將於 Phase 2 開展實作")
-                            } else {
-                                navigator.push(AppRoute.Login)
-                            }
-                        }
-                    )
-                    SettingsDivider()
-                    SettingsTile(
-                        icon = Icons.Default.Pin,
-                        iconColor = AppColors.primary,
-                        title = "開獎號碼兌獎",
-                        subtitle = "Phase 2 待續：自動比對當期統一發票中獎號碼",
-                        onTap = {
-                            NotificationController.showInfo("開獎號碼比對功能將於 Phase 2 推出")
-                        }
-                    )
-                    SettingsDivider()
-                    SettingsTile(
-                        icon = Icons.Default.DataObject,
-                        iconColor = AppColors.primary,
-                        title = "通訊稽核日誌",
-                        subtitle = "檢視與財政部 UIA 伺服器之通訊歷程",
-                        onTap = { navigator.push(AppRoute.ApiLogs) }
+                is SessionState.Expired -> {
+                    UnauthenticatedBarcodeCard(
+                        title = "會話已過期",
+                        subtitle = "帳號 ${state.credentials.phone}，請重新登入取得新金鑰",
+                        onLogin = { navigator.push(AppRoute.Login) },
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
 
-                NavigationBarsSafeSpacer()
+                is SessionState.Unauthenticated -> {
+                    UnauthenticatedBarcodeCard(
+                        title = "尚未綁定載具",
+                        subtitle = "登入以啟用載具條碼與 ss_me 會話簽章金鑰",
+                        onLogin = { navigator.push(AppRoute.Login) },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
             }
+
+            // 2. 會話簽署健康度底盤 (Session Health Chassis)
+            if (sessionState is SessionState.Authenticated) {
+                Spacer(modifier = Modifier.height(16.dp))
+                val session = (sessionState as SessionState.Authenticated).credentials
+                SessionHealthChassis(
+                    session = session,
+                    onInspectPayload = { navigator.push(AppRoute.Login) },
+                    onCopyKey = {
+                        clipboardManager.setText(AnnotatedString(session.ssMe))
+                        NotificationController.showSuccess("已複製 ss_me 簽署金鑰")
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            // 3. 發票業務服務插槽 (SettingsSection 自帶 horizontal = 16.dp，無第三個選項)
+            SettingsSection(title = "發票業務") {
+                SettingsTile(
+                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    iconColor = AppColors.primary,
+                    title = "月分發票明細",
+                    subtitle = "Phase 2 待續：由 ss_me 請求 UPI 發票清單",
+                    onTap = {
+                        if (sessionState is SessionState.Authenticated) {
+                            NotificationController.showInfo("發票清單 API 將於 Phase 2 開展實作")
+                        } else {
+                            navigator.push(AppRoute.Login)
+                        }
+                    }
+                )
+                SettingsDivider()
+                SettingsTile(
+                    icon = Icons.Default.Pin,
+                    iconColor = AppColors.primary,
+                    title = "開獎號碼兌獎",
+                    subtitle = "Phase 2 待續：自動比對當期統一發票中獎號碼",
+                    onTap = {
+                        NotificationController.showInfo("開獎號碼比對功能將於 Phase 2 推出")
+                    }
+                )
+            }
+
+            NavigationBarsSafeSpacer()
         }
     }
 }
@@ -190,13 +182,14 @@ fun HomeScreen(
 @Composable
 private fun CarrierBarcodeCard(
     session: SessionCredentials,
-    onCopyBarcode: () -> Unit
+    onCopyBarcode: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
     val shape = RoundedCornerShape(20.dp)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .shadow(
                 elevation = 8.dp,
@@ -333,13 +326,14 @@ private fun CarrierBarcodeCard(
 private fun UnauthenticatedBarcodeCard(
     title: String,
     subtitle: String,
-    onLogin: () -> Unit
+    onLogin: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
     val shape = RoundedCornerShape(20.dp)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .shadow(
                 elevation = 8.dp,
@@ -354,7 +348,7 @@ private fun UnauthenticatedBarcodeCard(
                 color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f),
                 shape = shape
             )
-            .padding(24.dp)
+            .padding(20.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -423,13 +417,14 @@ private fun UnauthenticatedBarcodeCard(
 private fun SessionHealthChassis(
     session: SessionCredentials,
     onInspectPayload: () -> Unit,
-    onCopyKey: () -> Unit
+    onCopyKey: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
     val shape = RoundedCornerShape(16.dp)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(shape)
             .background(if (isDark) AppColors.surfaceDark else Color.White)

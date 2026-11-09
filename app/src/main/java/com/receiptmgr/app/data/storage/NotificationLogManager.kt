@@ -4,20 +4,27 @@ import android.content.Context
 import android.util.Log
 import com.receiptmgr.app.domain.model.common.NotificationType
 import com.receiptmgr.app.domain.model.log.NotificationLogEntry
+import com.receiptmgr.app.domain.model.log.NotificationLogRecord
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.random.Random
 
+/**
+ * 系統通知日誌管理器 (NotificationLogManager)。
+ * 負責將 App 發布之各項通知（成功、錯誤、警告、資訊）非同步持久化至本地 JSON。
+ * 全面採用 kotlinx.serialization 強型別模型 [NotificationLogRecord]，消除舊式 JSONObject。
+ */
 class NotificationLogManager(private val context: Context) {
 
     companion object {
@@ -27,11 +34,16 @@ class NotificationLogManager(private val context: Context) {
     }
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    private val logDir = File(context.filesDir, "logs/notifications").apply {
+    val logDir = File(context.filesDir, "logs/notifications").apply {
         if (!exists()) mkdirs()
     }
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val json = Json {
+        prettyPrint = true
+        ignoreUnknownKeys = true
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _logsFlow = MutableStateFlow<List<NotificationLogEntry>>(emptyList())
     val logsFlow: StateFlow<List<NotificationLogEntry>> = _logsFlow.asStateFlow()
 
@@ -56,17 +68,17 @@ class NotificationLogManager(private val context: Context) {
                 val yyyyMMdd = SimpleDateFormat("yyyyMMdd", Locale.US).format(now)
                 val hhmmss = SimpleDateFormat("HHmmss", Locale.US).format(now)
                 val random = Random.nextInt(100000, 999999)
-                val fileName = "${yyyyMMdd}_${hhmmss}_Notification_${random}.json"
+                val fileName = "${yyyyMMdd}_${hhmmss}_Notification_${type.name.lowercase(Locale.US)}_${random}.json"
                 val file = File(logDir, fileName)
 
                 val isoTimestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US).format(now)
-                val json = JSONObject().apply {
-                    put("timestamp", isoTimestamp)
-                    put("type", type.name.lowercase(Locale.US))
-                    put("message", message)
-                }
+                val record = NotificationLogRecord(
+                    timestamp = isoTimestamp,
+                    type = type.name.lowercase(Locale.US),
+                    message = message
+                )
 
-                file.writeText(json.toString(2))
+                file.writeText(json.encodeToString(record))
                 reload()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write notification log: ${e.message}", e)
@@ -85,73 +97,82 @@ class NotificationLogManager(private val context: Context) {
         val files = logDir.listFiles { f -> f.extension == "json" } ?: emptyArray()
         return files.mapNotNull { file ->
             try {
-                val content = file.readText()
-                val json = JSONObject(content)
-                val typeStr = json.optString("type", "info")
-                val type = when (typeStr.lowercase(Locale.US)) {
-                    "success" -> NotificationType.SUCCESS
-                    "error" -> NotificationType.ERROR
-                    "warning" -> NotificationType.WARNING
-                    else -> NotificationType.INFO
-                }
-                val message = json.optString("message", "")
-                val timestampStr = json.optString("timestamp", "")
-                val fileModified = file.lastModified()
+                val fileName = file.name
+                val parts = fileName.removeSuffix(".json").split("_")
 
-                var displayTime = timestampStr
-                if (timestampStr.isNotEmpty()) {
-                    try {
-                        val parsedDate = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).parse(timestampStr)
-                        if (parsedDate != null) {
-                            displayTime = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.US).format(parsedDate)
+                var dtMillis = file.lastModified()
+                var displayTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(dtMillis))
+                var notifType = NotificationType.INFO
+                var message = ""
+
+                if (parts.size >= 2) {
+                    val dateStr = parts[0]
+                    val timeStr = parts[1]
+                    if (dateStr.length == 8 && timeStr.length >= 6) {
+                        val parsed = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).parse("${dateStr}_${timeStr.take(6)}")
+                        if (parsed != null) {
+                            dtMillis = parsed.time
+                            displayTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(parsed)
                         }
-                    } catch (_: Exception) {}
+                    }
+                }
+
+                if (parts.size >= 4) {
+                    val typeStr = parts[3].lowercase(Locale.US)
+                    notifType = when (typeStr) {
+                        "success" -> NotificationType.SUCCESS
+                        "error" -> NotificationType.ERROR
+                        "warning" -> NotificationType.WARNING
+                        else -> NotificationType.INFO
+                    }
+                }
+
+                // 讀取檔案取得 message
+                runCatching {
+                    val content = file.readText()
+                    val record = json.decodeFromString<NotificationLogRecord>(content)
+                    message = record.message
+                    if (record.timestamp.isNotBlank()) {
+                        displayTime = record.timestamp.replace("T", " ")
+                    }
                 }
 
                 NotificationLogEntry(
                     id = file.name,
                     file = file,
-                    type = type,
+                    type = notifType,
                     message = message,
                     timestampStr = displayTime,
-                    timestampMillis = fileModified
+                    timestampMillis = dtMillis
                 )
             } catch (e: Exception) {
+                Log.w(TAG, "Failed to parse notification log: ${file.name}", e)
                 null
             }
-        }.sortedByDescending { it.file.name }
+        }.sortedByDescending { it.timestampMillis }
     }
 
-    suspend fun clearLog(file: File) = withContext(Dispatchers.IO) {
-        try {
-            if (file.exists()) {
-                file.delete()
+    fun clearLog(file: File) {
+        scope.launch {
+            try {
+                if (file.exists()) {
+                    file.delete()
+                }
+                reload()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete notification log: ${file.name}", e)
             }
-            _logsFlow.value = _logsFlow.value.filter {
-                it.file.absolutePath != file.absolutePath && it.id != file.name
-            }
-            val entries = loadAllEntries()
-            _logsFlow.value = entries
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to delete log file: ${e.message}", e)
         }
     }
 
-    suspend fun clearAllLogs() = withContext(Dispatchers.IO) {
-        try {
-            if (logDir.exists()) {
-                logDir.listFiles()?.forEach { f ->
-                    try {
-                        if (f.isDirectory) f.deleteRecursively() else f.delete()
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to delete ${f.name}: ${e.message}")
-                    }
-                }
+    fun clearAllLogs() {
+        scope.launch {
+            try {
+                logDir.listFiles()?.forEach { it.delete() }
+                reload()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to clear all notification logs: ${e.message}", e)
             }
-            _logsFlow.value = emptyList()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to clear all logs: ${e.message}", e)
-            _logsFlow.value = emptyList()
         }
     }
 }

@@ -44,10 +44,10 @@ fun NotificationToast(
 ) {
     val isDark = isSystemInDarkTheme()
     val (typeColor, typeIcon) = when (notification.type) {
-        NotificationType.SUCCESS -> Pair(if (isDark) Color.White else AppColors.textPrimaryLight, Icons.Outlined.CheckCircleOutline)
-        NotificationType.ERROR -> Pair(AppColors.danger, Icons.Outlined.ErrorOutline)
-        NotificationType.INFO -> Pair(AppColors.primary, Icons.Outlined.Info)
-        NotificationType.WARNING -> Pair(AppColors.secondary, Icons.Outlined.WarningAmber)
+        NotificationType.SUCCESS -> Pair(Color(0xFF10B981), Icons.Outlined.CheckCircleOutline)
+        NotificationType.ERROR -> Pair(Color(0xFFEF4444), Icons.Outlined.ErrorOutline)
+        NotificationType.WARNING -> Pair(Color(0xFFF59E0B), Icons.Outlined.WarningAmber)
+        NotificationType.INFO -> Pair(Color(0xFF3B82F6), Icons.Outlined.Info)
     }
 
     val shape = RoundedCornerShape(16.dp)
