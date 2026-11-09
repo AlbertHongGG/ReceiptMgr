@@ -1,5 +1,7 @@
 package com.receiptmgr.app.presentation.features.home
 
+import android.app.Activity
+import android.view.WindowManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,8 +32,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +46,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -48,12 +55,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.receiptmgr.app.domain.model.auth.SessionCredentials
 import com.receiptmgr.app.domain.model.auth.SessionState
+import com.receiptmgr.app.presentation.components.AppSwitch
 import com.receiptmgr.app.presentation.components.ImmersiveScaffold
 import com.receiptmgr.app.presentation.components.NavigationBarsSafeSpacer
 import com.receiptmgr.app.presentation.components.PremiumConfigHeader
 import com.receiptmgr.app.presentation.components.SettingsDivider
 import com.receiptmgr.app.presentation.components.SettingsSection
 import com.receiptmgr.app.presentation.components.SettingsTile
+import com.receiptmgr.app.presentation.components.barcode.BarcodeCanvas
 import com.receiptmgr.app.presentation.navigation.contract.LocalCupertinoNavigator
 import com.receiptmgr.app.presentation.navigation.model.AppRoute
 import com.receiptmgr.app.presentation.notification.NotificationController
@@ -172,6 +181,18 @@ private fun CarrierBarcodeCard(
 ) {
     val isDark = isSystemInDarkTheme()
     val shape = RoundedCornerShape(20.dp)
+    val context = LocalContext.current
+    val activity = context as? Activity
+    var keepScreenOn by rememberSaveable { mutableStateOf(false) }
+
+    DisposableEffect(keepScreenOn) {
+        if (keepScreenOn && activity != null) {
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 
     Box(
         modifier = modifier
@@ -232,71 +253,71 @@ private fun CarrierBarcodeCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // 條碼畫布 (純色高對比 Code39 視覺)
+            // 條碼畫布 (純色高對比 Code39 原生向量繪製)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(68.dp)
+                    .height(72.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
             ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val canvasWidth = size.width
-                    val canvasHeight = size.height
-
-                    // 條碼條紋寬度陣列 (交替寬窄條)
-                    val pattern = intArrayOf(
-                        3, 2, 4, 1, 3, 2, 5, 2, 1, 4, 2, 3, 5, 1, 2, 4, 2, 3, 1, 5, 2, 4, 1, 3, 2, 5,
-                        1, 4, 2, 3, 5, 1, 2, 4, 3, 2, 1, 5, 2, 4, 1, 3, 5, 2, 1, 4, 2, 3, 1, 5, 2, 4
-                    )
-                    val totalWeight = pattern.sum()
-                    val unit = canvasWidth / (totalWeight + 10)
-
-                    var currentX = unit * 5
-                    for (i in pattern.indices) {
-                        val barWidth = pattern[i] * unit
-                        if (i % 2 == 0) {
-                            drawRect(
-                                color = Color.Black,
-                                topLeft = Offset(currentX, 0f),
-                                size = Size(barWidth, canvasHeight)
-                            )
-                        }
-                        currentX += barWidth
-                    }
-                }
+                BarcodeCanvas(
+                    content = session.barcode,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // 載具代碼文字 + 複製按鈕
+            // 載具代碼文字（左側）與 恆亮切換開關（右側）
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = session.barcode,
-                    fontSize = 18.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp,
-                    color = if (isDark) Color.White else AppColors.textPrimaryLight
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = onCopyBarcode,
-                    modifier = Modifier.size(28.dp)
+                // 載具代碼點擊複製區塊
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onCopyBarcode)
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.ContentCopy,
                         contentDescription = "複製條碼",
                         modifier = Modifier.size(16.dp),
                         tint = AppColors.secondary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = session.barcode,
+                        fontSize = 17.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = if (isDark) Color.White else AppColors.textPrimaryLight
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // 恆亮控制開關
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "恆亮",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    AppSwitch(
+                        checked = keepScreenOn,
+                        onCheckedChange = { keepScreenOn = it }
                     )
                 }
             }
