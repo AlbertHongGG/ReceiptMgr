@@ -213,7 +213,7 @@ fun SettingsScreen(
         if (showClearSessionDrawer) {
             SwipeToConfirmDrawer(
                 title = "確認清除會話",
-                description = "此操作將抹除本機儲存之 ss_me 金鑰及憑證，需重新驗證帳號登入。",
+                description = "此操作將抹除金鑰及憑證，需重新登入。",
                 sliderTitle = "SLIDE TO CLEAR",
                 onConfirm = {
                     viewModel.clearSession()

@@ -350,70 +350,62 @@ fun LoginScreen(
                     }
                 }
 
-                // 底部留白，防範滾動內容被固著 Footer 遮擋
-                Spacer(modifier = Modifier.height(100.dp))
+                // 底部留白，保證滑至最底時，「推播權杖」卡片高於懸浮按鈕 24.dp 以上，絕對零遮擋
+                Spacer(modifier = Modifier.height(140.dp))
             }
 
-            // 固著置底操作列 (Docked Bottom Action Bar)
-            Surface(
+            // 正中下方懸浮膠囊操作鈕 (Centered Floating Action Pill)
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .shadow(
-                        elevation = 16.dp,
-                        spotColor = if (isDark) Color.Black.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.15f),
-                        ambientColor = if (isDark) Color.Black.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.08f)
-                    ),
-                color = if (isDark) AppColors.backgroundDark.copy(alpha = 0.95f) else AppColors.backgroundLight.copy(alpha = 0.95f),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = borderColor
-                )
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (isDark) Color.White else AppColors.textPrimaryLight)
-                            .clickable(enabled = !uiState.isLoading) {
-                                viewModel.executeLogin {
-                                    navigator.pop()
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (uiState.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                color = if (isDark) Color.Black else Color.White,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.Login,
-                                    contentDescription = "登入",
-                                    tint = if (isDark) Color.Black else Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "驗證登入",
-                                    color = if (isDark) Color.Black else Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                        .height(52.dp)
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = RoundedCornerShape(26.dp),
+                            spotColor = if (isDark) Color.Black.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.22f),
+                            ambientColor = if (isDark) Color.Black.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.10f)
+                        )
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(if (isDark) Color.White else AppColors.textPrimaryLight)
+                        .clickable(enabled = !uiState.isLoading) {
+                            viewModel.executeLogin {
+                                navigator.pop()
                             }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            color = if (isDark) Color.Black else Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.Login,
+                                contentDescription = "登入",
+                                tint = if (isDark) Color.Black else Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "驗證登入",
+                                color = if (isDark) Color.Black else Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }

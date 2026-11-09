@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.receiptmgr.app.data.device.DeviceEnvironmentProvider
 import com.receiptmgr.app.domain.model.auth.DeviceFingerprint
 import com.receiptmgr.app.domain.model.auth.LoginCommand
+import com.receiptmgr.app.domain.model.auth.SessionState
 import com.receiptmgr.app.domain.model.auth.TargetAppSpec
 import com.receiptmgr.app.domain.model.auth.UiaProtocolException
 import com.receiptmgr.app.domain.repository.AuthRepository
@@ -40,6 +41,7 @@ class LoginViewModel(
 
     private val _uiState = MutableStateFlow(
         LoginUiState(
+            account = (authRepository.sessionState.value as? SessionState.Authenticated)?.credentials?.account.orEmpty(),
             appver = TargetAppSpec.DEFAULT_TARGET_APP_VER,
             appbn = TargetAppSpec.DEFAULT_TARGET_APP_BN,
             appId = TargetAppSpec.DEFAULT_APP_ID,
@@ -50,6 +52,17 @@ class LoginViewModel(
         )
     )
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+
+    init {
+        // 若當前已有登入會話且表單尚未輸入帳號，自動預填目前帳號以利再次登入或修改
+        viewModelScope.launch {
+            authRepository.sessionState.collect { state ->
+                if (state is SessionState.Authenticated && _uiState.value.account.isBlank()) {
+                    _uiState.update { it.copy(account = state.credentials.account) }
+                }
+            }
+        }
+    }
 
     fun onAccountChange(value: String) {
         _uiState.update { it.copy(account = value.trim(), error = null, isSuccess = false) }
@@ -87,9 +100,11 @@ class LoginViewModel(
     }
 
     fun resetDefaults() {
+        val currentAccount = (authRepository.sessionState.value as? SessionState.Authenticated)?.credentials?.account.orEmpty()
         val fingerprint = deviceEnvironmentProvider.getDeviceFingerprint()
         _uiState.update {
             it.copy(
+                account = if (it.account.isBlank()) currentAccount else it.account,
                 appver = TargetAppSpec.DEFAULT_TARGET_APP_VER,
                 appbn = TargetAppSpec.DEFAULT_TARGET_APP_BN,
                 appId = TargetAppSpec.DEFAULT_APP_ID,

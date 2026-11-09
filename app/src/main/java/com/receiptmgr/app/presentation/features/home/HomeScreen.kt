@@ -21,9 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.Settings
@@ -103,7 +101,7 @@ fun HomeScreen(
                     CarrierBarcodeCard(
                         session = state.credentials,
                         onCopyBarcode = {
-                            clipboardManager.setText(AnnotatedString(state.credentials.phone))
+                            clipboardManager.setText(AnnotatedString(state.credentials.barcode))
                             NotificationController.showSuccess("已複製載具條碼")
                         },
                         modifier = Modifier.padding(horizontal = 16.dp)
@@ -113,7 +111,7 @@ fun HomeScreen(
                 is SessionState.Expired -> {
                     UnauthenticatedBarcodeCard(
                         title = "會話已過期",
-                        subtitle = "帳號 ${state.credentials.phone}，請重新登入取得新金鑰",
+                        subtitle = "載具 ${state.credentials.barcode}，請重新登入",
                         onLogin = { navigator.push(AppRoute.Login) },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -122,29 +120,16 @@ fun HomeScreen(
                 is SessionState.Unauthenticated -> {
                     UnauthenticatedBarcodeCard(
                         title = "尚未綁定載具",
-                        subtitle = "登入以啟用載具條碼與 ss_me 會話簽章金鑰",
+                        subtitle = "登入以啟用載具條碼與會話憑證",
                         onLogin = { navigator.push(AppRoute.Login) },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
             }
 
-            // 2. 會話簽署健康度底盤 (Session Health Chassis)
-            if (sessionState is SessionState.Authenticated) {
-                Spacer(modifier = Modifier.height(16.dp))
-                val session = (sessionState as SessionState.Authenticated).credentials
-                SessionHealthChassis(
-                    session = session,
-                    onInspectPayload = { navigator.push(AppRoute.Login) },
-                    onCopyKey = {
-                        clipboardManager.setText(AnnotatedString(session.ssMe))
-                        NotificationController.showSuccess("已複製 ss_me 簽署金鑰")
-                    },
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. 發票業務服務插槽 (SettingsSection 自帶 horizontal = 16.dp，無第三個選項)
+            // 2. 發票業務服務插槽 (SettingsSection 自帶 horizontal = 16.dp，無第三個選項)
             SettingsSection(title = "發票業務") {
                 SettingsTile(
                     icon = Icons.AutoMirrored.Outlined.ReceiptLong,
@@ -293,7 +278,7 @@ private fun CarrierBarcodeCard(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = session.phone,
+                    text = session.barcode,
                     fontSize = 18.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -405,104 +390,6 @@ private fun UnauthenticatedBarcodeCard(
                     fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.Black else Color.White
                 )
-            }
-        }
-    }
-}
-
-/**
- * 會話健康指標底盤：檢視 ss_me 密鑰狀態。
- */
-@Composable
-private fun SessionHealthChassis(
-    session: SessionCredentials,
-    onInspectPayload: () -> Unit,
-    onCopyKey: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isDark = isSystemInDarkTheme()
-    val shape = RoundedCornerShape(16.dp)
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(if (isDark) AppColors.surfaceDark else Color.White)
-            .border(
-                width = 1.dp,
-                color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f),
-                shape = shape
-            )
-            .padding(16.dp)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "ss_me 會話簽章金鑰",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color.White else AppColors.textPrimaryLight
-                    )
-                    Text(
-                        text = "UPI 發票清單與明細 API 核心簽名憑證",
-                        fontSize = 11.sp,
-                        color = if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
-                    )
-                }
-
-                IconButton(
-                    onClick = onInspectPayload,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                        contentDescription = "檢視 Payload",
-                        modifier = Modifier.size(14.dp),
-                        tint = AppColors.secondary
-                    )
-                }
-            }
-
-            // 遮罩金鑰視圖
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f))
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val masked = if (session.ssMe.length > 12) {
-                        "${session.ssMe.take(6)}••••••••${session.ssMe.takeLast(6)}"
-                    } else session.ssMe
-
-                    Text(
-                        text = masked,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = if (isDark) Color.White.copy(alpha = 0.85f) else AppColors.textPrimaryLight,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    IconButton(
-                        onClick = onCopyKey,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ContentCopy,
-                            contentDescription = "複製",
-                            tint = AppColors.secondary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
             }
         }
     }
