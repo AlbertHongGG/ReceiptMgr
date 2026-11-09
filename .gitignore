@@ -1,3 +1,28 @@
+# Android & Gradle
+.gradle/
+build/
+*/build/
+.kotlin/
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+.navigation/
+captures/
+
+# Android Local & Secrets
+local.properties
+*.keystore
+*.jks
+
+# Android Build Outputs & Native
+*.apk
+*.aab
+*.ap_
+*.dex
+.cxx/
+.externalNativeBuild/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -8,7 +33,6 @@ venv/
 
 # Build & packaging
 dist/
-build/
 *.egg-info/
 
 # Environment
@@ -17,3 +41,7 @@ build/
 
 # Audit temporary files
 .runtime/
+
+# OS specific
+.DS_Store
+Thumbs.db
