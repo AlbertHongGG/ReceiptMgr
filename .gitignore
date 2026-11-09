@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Build & packaging
+dist/
+build/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+
+# Audit temporary files
+.runtime/

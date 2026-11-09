@@ -1,0 +1,20 @@
+[project]
+name = "einvoice-cli"
+version = "0.1.0"
+description = "財政部電子發票 (UPI 體系) 官方端口逆向模擬與快速測試 CLI 工具"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27.0",
+    "pydantic>=2.6.0",
+    "python-dotenv>=1.0.0",
+    "rich>=13.7.0",
+    "typer>=0.12.0",
+]
+
+[project.scripts]
+einvoice = "einvoice_cli.cli.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
