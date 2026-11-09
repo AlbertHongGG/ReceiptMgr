@@ -2,7 +2,7 @@ package com.receiptmgr.app.data.repository
 
 import com.receiptmgr.app.data.network.UiaAuthApiClient
 import com.receiptmgr.app.data.storage.EncryptedSessionDataSource
-import com.receiptmgr.app.domain.model.auth.LoginRequestData
+import com.receiptmgr.app.domain.model.auth.LoginCommand
 import com.receiptmgr.app.domain.model.auth.SessionCredentials
 import com.receiptmgr.app.domain.model.auth.SessionState
 import com.receiptmgr.app.domain.repository.AuthRepository
@@ -37,8 +37,8 @@ class AuthRepositoryImpl(
         }
     }
 
-    override suspend fun login(requestData: LoginRequestData): Result<SessionCredentials> {
-        val result = apiClient.executeLogin(requestData)
+    override suspend fun login(command: LoginCommand): Result<SessionCredentials> {
+        val result = apiClient.executeLogin(command)
         result.onSuccess { session ->
             sessionDataSource.saveSession(session)
             _sessionState.value = SessionState.Authenticated(session)

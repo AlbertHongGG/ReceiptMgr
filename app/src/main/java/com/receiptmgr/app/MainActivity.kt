@@ -67,13 +67,13 @@ class MainActivity : ComponentActivity() {
                             HomeViewModel(appContainer.authRepository)
                         }
                         val loginViewModel = remember {
-                            LoginViewModel(appContainer.authRepository, applicationContext)
+                            LoginViewModel(appContainer.authRepository, appContainer.deviceEnvironmentProvider)
                         }
                         val settingsViewModel = remember {
                             SettingsViewModel(
                                 appContainer.authRepository,
                                 appContainer.settingsRepository,
-                                applicationContext
+                                appContainer.deviceEnvironmentProvider
                             )
                         }
 

@@ -1,6 +1,9 @@
 package com.receiptmgr.app.di
 
 import android.content.Context
+import com.receiptmgr.app.data.crypto.UiaPacketCodec
+import com.receiptmgr.app.data.crypto.UiaSymmetricCipher
+import com.receiptmgr.app.data.device.DeviceEnvironmentProvider
 import com.receiptmgr.app.data.network.UiaAuthApiClient
 import com.receiptmgr.app.data.repository.AuthRepositoryImpl
 import com.receiptmgr.app.data.repository.SettingsRepositoryImpl
@@ -18,6 +21,8 @@ interface AppContainer {
     val notificationController: NotificationController
     val settingsDataStore: SettingsDataStore
     val encryptedSessionDataSource: EncryptedSessionDataSource
+    val deviceEnvironmentProvider: DeviceEnvironmentProvider
+    val uiaPacketCodec: UiaPacketCodec
     val uiaAuthApiClient: UiaAuthApiClient
     val authRepository: AuthRepository
     val settingsRepository: SettingsRepository
@@ -47,8 +52,19 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         EncryptedSessionDataSource(context)
     }
 
+    override val deviceEnvironmentProvider: DeviceEnvironmentProvider by lazy {
+        DeviceEnvironmentProvider(context)
+    }
+
+    override val uiaPacketCodec: UiaPacketCodec by lazy {
+        UiaPacketCodec(cipher = UiaSymmetricCipher())
+    }
+
     override val uiaAuthApiClient: UiaAuthApiClient by lazy {
-        UiaAuthApiClient(apiLogManager)
+        UiaAuthApiClient(
+            apiLogManager = apiLogManager,
+            packetCodec = uiaPacketCodec
+        )
     }
 
     override val authRepository: AuthRepository by lazy {

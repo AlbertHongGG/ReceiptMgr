@@ -1,9 +1,8 @@
 package com.receiptmgr.app.presentation.features.settings
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.receiptmgr.app.data.crypto.DeviceFingerprintProvider
+import com.receiptmgr.app.data.device.DeviceEnvironmentProvider
 import com.receiptmgr.app.domain.model.auth.SessionState
 import com.receiptmgr.app.domain.repository.AuthRepository
 import com.receiptmgr.app.domain.repository.SettingsRepository
@@ -25,7 +24,7 @@ data class SettingsUiState(
 class SettingsViewModel(
     private val authRepository: AuthRepository,
     private val settingsRepository: SettingsRepository,
-    context: Context
+    private val deviceEnvironmentProvider: DeviceEnvironmentProvider
 ) : ViewModel() {
 
     val sessionState: StateFlow<SessionState> = authRepository.sessionState
@@ -37,10 +36,10 @@ class SettingsViewModel(
 
     private val _uiState = MutableStateFlow(
         SettingsUiState(
-            deviceUuid = DeviceFingerprintProvider.getAndroidUuid(context),
-            deviceModel = DeviceFingerprintProvider.getDeviceModel(),
-            osVersion = DeviceFingerprintProvider.getOsVersion(),
-            appVersion = DeviceFingerprintProvider.getAppVersion(context)
+            deviceUuid = deviceEnvironmentProvider.getAndroidUuid(),
+            deviceModel = deviceEnvironmentProvider.getDeviceModel(),
+            osVersion = deviceEnvironmentProvider.getOsVersion(),
+            appVersion = deviceEnvironmentProvider.getHostAppVersion()
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()

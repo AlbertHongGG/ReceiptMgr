@@ -68,7 +68,6 @@ import com.receiptmgr.app.presentation.theme.AppColors
 fun LoginScreen(
     viewModel: LoginViewModel
 ) {
-    val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val uiState by viewModel.uiState.collectAsState()
     val isDark = isSystemInDarkTheme()
@@ -91,7 +90,7 @@ fun LoginScreen(
                 title = "帳號授權",
                 subtitle = "UIA PROTOCOL AUTHENTICATION",
                 actions = {
-                    IconButton(onClick = { viewModel.resetDefaults(context) }) {
+                    IconButton(onClick = { viewModel.resetDefaults() }) {
                         Icon(
                             imageVector = Icons.Outlined.RestartAlt,
                             contentDescription = "重設參數",

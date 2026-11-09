@@ -1,11 +1,13 @@
 package com.receiptmgr.app.presentation.features.login
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.receiptmgr.app.data.crypto.DeviceFingerprintProvider
-import com.receiptmgr.app.domain.model.auth.LoginRequestData
+import com.receiptmgr.app.data.device.DeviceEnvironmentProvider
+import com.receiptmgr.app.domain.model.auth.DeviceFingerprint
+import com.receiptmgr.app.domain.model.auth.LoginCommand
 import com.receiptmgr.app.domain.model.auth.SessionCredentials
+import com.receiptmgr.app.domain.model.auth.TargetClientSpec
+import com.receiptmgr.app.domain.model.auth.UiaProtocolException
 import com.receiptmgr.app.domain.repository.AuthRepository
 import com.receiptmgr.app.presentation.notification.NotificationController
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,12 +19,12 @@ import kotlinx.coroutines.launch
 data class LoginUiState(
     val phone: String = "",
     val password: String = "",
-    val appId: String = DeviceFingerprintProvider.DEFAULT_APP_ID,
-    val appVersion: String = DeviceFingerprintProvider.DEFAULT_APP_VERSION,
+    val appId: String = TargetClientSpec.DEFAULT_APP_ID,
+    val appVersion: String = TargetClientSpec.DEFAULT_TARGET_APP_VERSION,
     val deviceModel: String = "",
     val osVersion: String = "",
     val uuid: String = "",
-    val loginMod: String = "0",
+    val loginMod: String = TargetClientSpec.DEFAULT_LOGIN_MOD,
     val isLoading: Boolean = false,
     val error: String? = null,
     val responseSession: SessionCredentials? = null,
@@ -31,15 +33,17 @@ data class LoginUiState(
 
 class LoginViewModel(
     private val authRepository: AuthRepository,
-    context: Context
+    private val deviceEnvironmentProvider: DeviceEnvironmentProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         LoginUiState(
-            deviceModel = DeviceFingerprintProvider.getDeviceModel(),
-            osVersion = DeviceFingerprintProvider.getOsVersion(),
-            uuid = DeviceFingerprintProvider.getAndroidUuid(context),
-            appVersion = DeviceFingerprintProvider.getAppVersion(context)
+            appId = TargetClientSpec.DEFAULT_APP_ID,
+            appVersion = TargetClientSpec.DEFAULT_TARGET_APP_VERSION,
+            deviceModel = deviceEnvironmentProvider.getDeviceModel(),
+            osVersion = deviceEnvironmentProvider.getOsVersion(),
+            uuid = deviceEnvironmentProvider.getAndroidUuid(),
+            loginMod = TargetClientSpec.DEFAULT_LOGIN_MOD
         )
     )
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -80,44 +84,50 @@ class LoginViewModel(
         _uiState.update { it.copy(responseTab = tab) }
     }
 
-    fun resetDefaults(context: Context) {
+    fun resetDefaults() {
+        val fingerprint = deviceEnvironmentProvider.getDeviceFingerprint()
         _uiState.update {
             it.copy(
-                appId = DeviceFingerprintProvider.DEFAULT_APP_ID,
-                appVersion = DeviceFingerprintProvider.getAppVersion(context),
-                deviceModel = DeviceFingerprintProvider.getDeviceModel(),
-                osVersion = DeviceFingerprintProvider.getOsVersion(),
-                uuid = DeviceFingerprintProvider.getAndroidUuid(context),
-                loginMod = "0",
+                appId = TargetClientSpec.DEFAULT_APP_ID,
+                appVersion = TargetClientSpec.DEFAULT_TARGET_APP_VERSION,
+                deviceModel = fingerprint.deviceModel,
+                osVersion = fingerprint.osVersion,
+                uuid = fingerprint.androidUuid,
+                loginMod = TargetClientSpec.DEFAULT_LOGIN_MOD,
                 error = null
             )
         }
-        NotificationController.showInfo("已重設預設參數")
+        NotificationController.showInfo("已重設為官方標準參數 (版號: ${TargetClientSpec.DEFAULT_TARGET_APP_VERSION})")
     }
 
     fun executeLogin() {
         val current = _uiState.value
         if (current.phone.isBlank() || current.password.isBlank()) {
-            _uiState.update { it.copy(error = "請輸入帳號與密碼") }
-            NotificationController.showWarning("請輸入帳號與密碼")
+            val errMsg = "請輸入帳號與密碼"
+            _uiState.update { it.copy(error = errMsg) }
+            NotificationController.showWarning(errMsg)
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val requestData = LoginRequestData(
+
+            val command = LoginCommand(
                 phone = current.phone,
                 password = current.password,
-                appId = current.appId,
-                appVersion = current.appVersion,
-                deviceModel = current.deviceModel,
-                osVersion = current.osVersion,
-                uuid = current.uuid,
-                timestamp = System.currentTimeMillis() / 1000L,
-                loginMod = current.loginMod
+                clientSpec = TargetClientSpec(
+                    appId = current.appId,
+                    appVersion = current.appVersion,
+                    loginMod = current.loginMod
+                ),
+                deviceFingerprint = DeviceFingerprint(
+                    deviceModel = current.deviceModel,
+                    osVersion = current.osVersion,
+                    androidUuid = current.uuid
+                )
             )
 
-            val result = authRepository.login(requestData)
+            val result = authRepository.login(command)
             result.onSuccess { session ->
                 _uiState.update {
                     it.copy(
@@ -128,7 +138,19 @@ class LoginViewModel(
                 }
                 NotificationController.showSuccess("登入成功，已取得會話")
             }.onFailure { ex ->
-                val errorMsg = ex.message ?: "登入失敗"
+                val errorMsg = when (ex) {
+                    is UiaProtocolException.DecryptionFailed ->
+                        "伺服器密文解密失敗 (-205): 請確認 Byte 0 對齊與金鑰"
+                    is UiaProtocolException.TimestampExpired ->
+                        "伺服器時間戳過期或重放攔截 (-204): 請確認系統時鐘即時性"
+                    is UiaProtocolException.ServerRejected ->
+                        "登入遭伺服器拒絕 (代碼: ${ex.resultCode})"
+                    is UiaProtocolException.TransportFailure ->
+                        "伺服器網路傳輸失敗: HTTP ${ex.httpStatus}"
+                    else ->
+                        ex.message ?: "登入失敗"
+                }
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
