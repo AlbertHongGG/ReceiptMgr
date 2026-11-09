@@ -99,25 +99,34 @@ fun InvoiceListScreen(
 
                     uiState.isCurrentOutdated -> {
                         PremiumEmptyState(
-                            title = "超出官方查詢期限",
-                            description = "財政部載具 API 僅保留近 5 期 (約 6 個月) 發票資料，此期別已超出伺服器查詢範圍。",
-                            icon = Icons.AutoMirrored.Outlined.ReceiptLong
+                            title = "超出查詢期限",
+                            description = "官方僅提供近 6 個月發票",
+                            icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 32.dp)
                         )
                     }
 
                     uiState.currentError != null && uiState.currentSummary == null -> {
                         PremiumEmptyState(
                             title = "載入失敗",
-                            description = uiState.currentError ?: "連線逾時或通訊異常",
-                            icon = Icons.AutoMirrored.Outlined.ReceiptLong
+                            description = uiState.currentError ?: "請稍後再試",
+                            icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 32.dp)
                         )
                     }
 
                     uiState.currentSummary?.invoices.isNullOrEmpty() -> {
                         PremiumEmptyState(
-                            title = "本期尚無發票紀錄",
-                            description = "尚未於此雙月期別開立任何雲端發票",
-                            icon = Icons.AutoMirrored.Outlined.ReceiptLong
+                            title = "無發票紀錄",
+                            description = "本期尚無消費發票",
+                            icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 32.dp)
                         )
                     }
 
