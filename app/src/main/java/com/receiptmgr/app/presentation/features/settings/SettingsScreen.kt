@@ -80,15 +80,7 @@ fun SettingsScreen(
                             icon = Icons.Default.AccountCircle,
                             iconColor = AppColors.primary,
                             title = "載具帳號",
-                            subtitle = "${state.credentials.phone} (剩餘 ${state.credentials.remainingDays} 天)",
-                            onTap = { navigator.push(AppRoute.Login) }
-                        )
-                        SettingsDivider()
-                        SettingsTile(
-                            icon = Icons.Default.Key,
-                            iconColor = AppColors.primary,
-                            title = "會話憑證",
-                            subtitle = "檢視 ss_me 與 Response Payload",
+                            subtitle = "${state.credentials.barcode} (剩餘 ${state.credentials.remainingDays} 天)",
                             onTap = { navigator.push(AppRoute.Login) }
                         )
                         SettingsDivider()
@@ -96,7 +88,7 @@ fun SettingsScreen(
                             icon = Icons.Default.DeleteOutline,
                             iconColor = AppColors.danger,
                             title = "清除會話",
-                            subtitle = "抹除本機 ss_me 金鑰憑證",
+                            subtitle = "抹除本機會話金鑰憑證",
                             isDestructive = true,
                             onTap = { showClearSessionDrawer = true }
                         )
@@ -107,7 +99,7 @@ fun SettingsScreen(
                             icon = Icons.Default.Key,
                             iconColor = AppColors.primary,
                             title = "會話已過期",
-                            subtitle = "帳號 ${state.credentials.phone}，點擊重新登入",
+                            subtitle = "載具 ${state.credentials.barcode}，點擊重新登入",
                             onTap = { navigator.push(AppRoute.Login) }
                         )
                     }
@@ -117,7 +109,7 @@ fun SettingsScreen(
                             icon = Icons.Default.Key,
                             iconColor = AppColors.primary,
                             title = "尚未授權",
-                            subtitle = "登入以取得 ss_me 會話簽章金鑰",
+                            subtitle = "登入以綁定載具條碼與會話金鑰",
                             onTap = { navigator.push(AppRoute.Login) }
                         )
                     }

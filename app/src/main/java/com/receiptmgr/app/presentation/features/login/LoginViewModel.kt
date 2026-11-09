@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.receiptmgr.app.data.device.DeviceEnvironmentProvider
 import com.receiptmgr.app.domain.model.auth.DeviceFingerprint
 import com.receiptmgr.app.domain.model.auth.LoginCommand
-import com.receiptmgr.app.domain.model.auth.SessionCredentials
 import com.receiptmgr.app.domain.model.auth.TargetAppSpec
 import com.receiptmgr.app.domain.model.auth.UiaProtocolException
 import com.receiptmgr.app.domain.repository.AuthRepository
@@ -27,9 +26,8 @@ data class LoginUiState(
     val androidId: String = "",
     val ptoken: String = TargetAppSpec.DEFAULT_PTOKEN,
     val isLoading: Boolean = false,
-    val error: String? = null,
-    val responseSession: SessionCredentials? = null,
-    val responseTab: Int = 0 // 0: 核心憑證, 1: 解密 JSON, 2: 伺服器原始 JSON
+    val isSuccess: Boolean = false,
+    val error: String? = null
 ) {
     val phone: String get() = account
     val pdid: String get() = "${DeviceFingerprint.PREFIX_ANDROID}$androidId"
@@ -54,13 +52,13 @@ class LoginViewModel(
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     fun onAccountChange(value: String) {
-        _uiState.update { it.copy(account = value.trim(), error = null) }
+        _uiState.update { it.copy(account = value.trim(), error = null, isSuccess = false) }
     }
 
     fun onPhoneChange(value: String) = onAccountChange(value)
 
     fun onPasswordChange(value: String) {
-        _uiState.update { it.copy(password = value, error = null) }
+        _uiState.update { it.copy(password = value, error = null, isSuccess = false) }
     }
 
     fun onDeviceModelChange(value: String) {
@@ -88,10 +86,6 @@ class LoginViewModel(
         _uiState.update { it.copy(appbn = bn) }
     }
 
-    fun onSelectResponseTab(tab: Int) {
-        _uiState.update { it.copy(responseTab = tab) }
-    }
-
     fun resetDefaults() {
         val fingerprint = deviceEnvironmentProvider.getDeviceFingerprint()
         _uiState.update {
@@ -103,13 +97,14 @@ class LoginViewModel(
                 osVersion = fingerprint.osVersion,
                 androidId = fingerprint.androidId,
                 ptoken = fingerprint.ptoken,
-                error = null
+                error = null,
+                isSuccess = false
             )
         }
         NotificationController.showInfo("已重設為官方標準規格 (版號: ${TargetAppSpec.DEFAULT_TARGET_APP_VER}, 碼號: ${TargetAppSpec.DEFAULT_TARGET_APP_BN})")
     }
 
-    fun executeLogin() {
+    fun executeLogin(onSuccess: (() -> Unit)? = null) {
         val current = _uiState.value
         if (current.account.isBlank() || current.password.isBlank()) {
             val errMsg = "請輸入帳號與密碼"
@@ -119,7 +114,7 @@ class LoginViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, error = null, isSuccess = false) }
 
             val command = LoginCommand(
                 account = current.account,
@@ -142,11 +137,12 @@ class LoginViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        responseSession = session,
+                        isSuccess = true,
                         error = null
                     )
                 }
-                NotificationController.showSuccess("登入成功，已取得會話憑證")
+                NotificationController.showSuccess("登入成功，已綁定載具 ${session.barcode}")
+                onSuccess?.invoke()
             }.onFailure { ex ->
                 val errorMsg = when (ex) {
                     is UiaProtocolException.DecryptionFailed ->
@@ -164,6 +160,7 @@ class LoginViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
+                        isSuccess = false,
                         error = errorMsg
                     )
                 }
