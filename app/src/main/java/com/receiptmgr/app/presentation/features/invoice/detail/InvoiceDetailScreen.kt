@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,10 +42,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.receiptmgr.app.domain.model.invoice.InvoiceDetail
+import com.receiptmgr.app.presentation.components.ExactCenteredWithTrailingLayout
 import com.receiptmgr.app.presentation.components.ImmersiveScaffold
 import com.receiptmgr.app.presentation.components.NavigationBarsSafeSpacer
-import com.receiptmgr.app.presentation.components.PremiumConfigHeader
 import com.receiptmgr.app.presentation.components.PremiumEmptyState
+import com.receiptmgr.app.presentation.navigation.contract.LocalCupertinoNavigator
 import com.receiptmgr.app.presentation.notification.NotificationController
 import com.receiptmgr.app.presentation.theme.AppColors
 
@@ -55,6 +57,7 @@ fun InvoiceDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val isDark = isSystemInDarkTheme()
     val clipboardManager = LocalClipboardManager.current
+    val navigator = LocalCupertinoNavigator.current
 
     val textPrimary = if (isDark) AppColors.textPrimaryDark else AppColors.textPrimaryLight
     val textSecondary = if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
@@ -63,12 +66,24 @@ fun InvoiceDetailScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // 頂部標頭
-            PremiumConfigHeader(
-                title = "發票明細",
-                subtitle = uiState.detail?.formattedInvNum ?: "INVOICE DETAILS",
-                showOrbWatermark = false
-            )
+            // 極簡頂部列：無標題、無副標，純淨懸浮返回按鈕
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { navigator.pop() },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        tint = textPrimary
+                    )
+                }
+            }
 
             Box(
                 modifier = Modifier
@@ -102,7 +117,7 @@ fun InvoiceDetailScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
                         ) {
                             // 數位熱感實體收據卡片
                             DigitalReceiptCard(
@@ -126,9 +141,10 @@ fun InvoiceDetailScreen(
 /**
  * 極簡數位收據卡片元件 (DigitalReceiptCard)
  * 規格保證：
- * 1. 發票號碼右側緊鄰行內複製圖示按鈕。
- * 2. 徹底移除「開立已確認」狀態與中獎資訊。
- * 3. 底部無冗餘按鈕。
+ * 1. 發票號碼本體絕對幾何置中 (ExactCenteredWithTrailingLayout)，複製圖示置於其右側不干擾居中。
+ * 2. 徹底移除上方 Header 標題與副標題。
+ * 3. 徹底移除「開立已確認」狀態與中獎資訊。
+ * 4. 底部無冗餘按鈕。
  */
 @Composable
 private fun DigitalReceiptCard(
@@ -185,35 +201,34 @@ private fun DigitalReceiptCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 發票號碼與行內複製圖示按鈕
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = detail.formattedInvNum,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        color = textPrimary
-                    )
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    IconButton(
-                        onClick = onCopyInvoiceNumber,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ContentCopy,
-                            contentDescription = "複製發票號碼",
-                            modifier = Modifier.size(17.dp),
-                            tint = textSecondary
+                // 發票號碼字串先幾何置中，複製圖示錨定於右側 (不擠壓置中性)
+                ExactCenteredWithTrailingLayout(
+                    centerContent = {
+                        Text(
+                            text = detail.formattedInvNum,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = textPrimary
                         )
-                    }
-                }
+                    },
+                    trailingContent = {
+                        IconButton(
+                            onClick = onCopyInvoiceNumber,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ContentCopy,
+                                contentDescription = "複製發票號碼",
+                                modifier = Modifier.size(17.dp),
+                                tint = textSecondary
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = detail.fullDateTime,

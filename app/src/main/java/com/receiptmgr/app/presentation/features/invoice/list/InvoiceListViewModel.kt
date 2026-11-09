@@ -12,19 +12,43 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * 發票清單 UI 狀態模型
+ * 發票清單 UI 狀態模型 (強型別期別隔離架構)
  */
 data class InvoiceListUiState(
     val currentPeriod: BillingPeriod = BillingPeriod.current(),
-    val summary: PeriodInvoiceSummary? = null,
-    val isLoading: Boolean = false,
-    val isRefreshing: Boolean = false,
-    val errorMessage: String? = null
-)
+    val periodSummaries: Map<BillingPeriod, PeriodInvoiceSummary> = emptyMap(),
+    val periodErrors: Map<BillingPeriod, String> = emptyMap(),
+    val loadingPeriods: Set<BillingPeriod> = emptySet(),
+    val isOutdatedPeriods: Set<BillingPeriod> = emptySet(),
+    val isRefreshing: Boolean = false
+) {
+    /** 當前畫面唯一合法的發票摘要，嚴格綁定 currentPeriod */
+    val currentSummary: PeriodInvoiceSummary? get() = periodSummaries[currentPeriod]
+
+    /** 當前期別之錯誤訊息 */
+    val currentError: String? get() = periodErrors[currentPeriod]
+
+    /** 當前期別是否正在載入中 */
+    val isCurrentLoading: Boolean get() = loadingPeriods.contains(currentPeriod)
+
+    /** 當前期別是否超出財政部 5 期 (半年) 保存期限 */
+    val isCurrentOutdated: Boolean get() = isOutdatedPeriods.contains(currentPeriod)
+
+    /** 是否允許往後切換至未來月份 (上限鎖定至當前雙月) */
+    val canGoNext: Boolean get() = currentPeriod < BillingPeriod.current()
+
+    // 兼容屬性
+    val summary: PeriodInvoiceSummary? get() = currentSummary
+    val isLoading: Boolean get() = isCurrentLoading
+    val errorMessage: String? get() = currentError
+}
 
 /**
  * 發票清單視圖模型 (InvoiceListViewModel)。
- * 職責：管理當前雙月期別、執行表頭載入與穿透強制刷新、匯總帳務指標。
+ * 職責：
+ * 1. 管理雙月期別狀態機，每次切換一律重新呼叫 API 取得最新資料。
+ * 2. 嚴格期別槽位隔離，杜絕跨期別資料幽靈殘留。
+ * 3. 封裝未來月份阻斷與歷史 5 期超期自動偵測。
  */
 class InvoiceListViewModel(
     private val invoiceRepository: InvoiceRepository
@@ -34,36 +58,63 @@ class InvoiceListViewModel(
     val uiState: StateFlow<InvoiceListUiState> = _uiState.asStateFlow()
 
     init {
-        loadInvoices(period = _uiState.value.currentPeriod, forceRefresh = false)
+        loadInvoices(period = _uiState.value.currentPeriod, isManualRefresh = false)
     }
 
-    fun loadInvoices(period: BillingPeriod, forceRefresh: Boolean = false) {
+    /**
+     * 載入指定期別發票。
+     * 每次切換期別均穿透發送 Fresh API 請求 (forceRefresh = true)。
+     */
+    fun loadInvoices(period: BillingPeriod, isManualRefresh: Boolean = false) {
         viewModelScope.launch {
-            _uiState.update {
-                if (forceRefresh) {
-                    it.copy(currentPeriod = period, isRefreshing = true, errorMessage = null)
-                } else {
-                    it.copy(currentPeriod = period, isLoading = true, errorMessage = null)
-                }
+            _uiState.update { state ->
+                state.copy(
+                    currentPeriod = period,
+                    isRefreshing = isManualRefresh,
+                    loadingPeriods = state.loadingPeriods + period,
+                    periodErrors = state.periodErrors - period
+                )
             }
 
-            invoiceRepository.getInvoiceHeaders(period = period, forceRefresh = forceRefresh)
+            // 1. 若該期別已超出財政部 5 期 (半年) 保存窗口，直接標記過期並賦予合規空資料
+            if (!period.isWithinMofQueryWindow()) {
+                val emptySummary = PeriodInvoiceSummary(
+                    period = period,
+                    totalAmount = 0L,
+                    invoiceCount = 0,
+                    invoices = emptyList()
+                )
+                _uiState.update { state ->
+                    state.copy(
+                        loadingPeriods = state.loadingPeriods - period,
+                        isRefreshing = false,
+                        periodSummaries = state.periodSummaries + (period to emptySummary),
+                        isOutdatedPeriods = state.isOutdatedPeriods + period
+                    )
+                }
+                return@launch
+            }
+
+            // 2. 每次切換期別一律強制穿透向財政部發送即時請求 (forceRefresh = true)
+            invoiceRepository.getInvoiceHeaders(period = period, forceRefresh = true)
                 .onSuccess { summary ->
-                    _uiState.update {
-                        it.copy(
-                            summary = summary,
-                            isLoading = false,
+                    _uiState.update { state ->
+                        state.copy(
+                            loadingPeriods = state.loadingPeriods - period,
                             isRefreshing = false,
-                            errorMessage = null
+                            periodSummaries = state.periodSummaries + (period to summary),
+                            isOutdatedPeriods = state.isOutdatedPeriods - period
                         )
                     }
                 }
                 .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
+                    _uiState.update { state ->
+                        state.copy(
+                            loadingPeriods = state.loadingPeriods - period,
                             isRefreshing = false,
-                            errorMessage = error.message ?: "載入發票清單失敗"
+                            periodErrors = state.periodErrors + (period to (error.message ?: "載入發票失敗")),
+                            // 失敗時確保清除該期別資料，避免殘留
+                            periodSummaries = state.periodSummaries - period
                         )
                     }
                 }
@@ -71,14 +122,16 @@ class InvoiceListViewModel(
     }
 
     fun selectPreviousPeriod() {
-        loadInvoices(period = _uiState.value.currentPeriod.previous(), forceRefresh = false)
+        loadInvoices(period = _uiState.value.currentPeriod.previous(), isManualRefresh = false)
     }
 
     fun selectNextPeriod() {
-        loadInvoices(period = _uiState.value.currentPeriod.next(), forceRefresh = false)
+        if (_uiState.value.canGoNext) {
+            loadInvoices(period = _uiState.value.currentPeriod.next(), isManualRefresh = false)
+        }
     }
 
     fun refresh() {
-        loadInvoices(period = _uiState.value.currentPeriod, forceRefresh = true)
+        loadInvoices(period = _uiState.value.currentPeriod, isManualRefresh = true)
     }
 }

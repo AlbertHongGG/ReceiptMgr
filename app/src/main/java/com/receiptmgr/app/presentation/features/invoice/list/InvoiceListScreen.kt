@@ -22,15 +22,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -45,14 +41,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.receiptmgr.app.domain.model.invoice.BillingPeriod
 import com.receiptmgr.app.domain.model.invoice.InvoiceHeader
 import com.receiptmgr.app.presentation.components.ImmersiveScaffold
 import com.receiptmgr.app.presentation.components.NavigationBarsSafeSpacer
-import com.receiptmgr.app.presentation.components.PremiumConfigHeader
 import com.receiptmgr.app.presentation.components.PremiumEmptyState
 import com.receiptmgr.app.presentation.navigation.contract.LocalCupertinoNavigator
 import com.receiptmgr.app.presentation.navigation.model.AppRoute
@@ -73,70 +67,53 @@ fun InvoiceListScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // 頂部導航
-            PremiumConfigHeader(
-                title = "月分發票明細",
-                subtitle = "E-INVOICE & EXPENSE LEDGER",
-                showOrbWatermark = false,
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.refresh() },
-                        enabled = !uiState.isLoading && !uiState.isRefreshing
-                    ) {
-                        if (uiState.isRefreshing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = textPrimary
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "重新整理",
-                                tint = textPrimary
-                            )
-                        }
-                    }
-                }
-            )
+            // 頂部間距 (無冗餘 Header，純粹沉浸體驗)
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // 雙月份期別切換器
-            BillingPeriodSelector(
+            // 區域 1: 輕量沉浸期別選取帶 (水平置中對稱，遠離左邊界 36dp 滑動衝突區，禁止看未來)
+            PeriodNavigationStrip(
                 period = uiState.currentPeriod,
+                canGoNext = uiState.canGoNext,
                 onPrevious = { viewModel.selectPreviousPeriod() },
                 onNext = { viewModel.selectNextPeriod() },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
             )
 
-            // 本期累積消費總覽卡
-            PeriodExpenseSummaryCard(
-                totalAmount = uiState.summary?.totalAmount ?: 0L,
-                invoiceCount = uiState.summary?.invoiceCount ?: 0,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+            // 區域 2: 大器戰情消費看板 Hero Dashboard (視覺重心，大字體金額)
+            ExpenseHeroDashboard(
+                totalAmount = uiState.currentSummary?.totalAmount ?: 0L,
+                invoiceCount = uiState.currentSummary?.invoiceCount ?: 0,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 下方直接展開發票卡片清單 (無三段式膠囊分頁欄)
+            // 區域 3 & 4: 語意過渡分區標籤與精緻化帳務清單
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
             ) {
                 when {
-                    uiState.isLoading -> {
+                    uiState.isCurrentLoading -> {
                         InvoiceListSkeleton()
                     }
 
-                    uiState.errorMessage != null && uiState.summary == null -> {
+                    uiState.isCurrentOutdated -> {
                         PremiumEmptyState(
-                            title = "載入失敗",
-                            description = uiState.errorMessage ?: "連線逾時或通訊異常",
+                            title = "超出官方查詢期限",
+                            description = "財政部載具 API 僅保留近 5 期 (約 6 個月) 發票資料，此期別已超出伺服器查詢範圍。",
                             icon = Icons.AutoMirrored.Outlined.ReceiptLong
                         )
                     }
 
-                    uiState.summary?.invoices.isNullOrEmpty() -> {
+                    uiState.currentError != null && uiState.currentSummary == null -> {
+                        PremiumEmptyState(
+                            title = "載入失敗",
+                            description = uiState.currentError ?: "連線逾時或通訊異常",
+                            icon = Icons.AutoMirrored.Outlined.ReceiptLong
+                        )
+                    }
+
+                    uiState.currentSummary?.invoices.isNullOrEmpty() -> {
                         PremiumEmptyState(
                             title = "本期尚無發票紀錄",
                             description = "尚未於此雙月期別開立任何雲端發票",
@@ -145,11 +122,35 @@ fun InvoiceListScreen(
                     }
 
                     else -> {
-                        val invoices = uiState.summary?.invoices ?: emptyList()
+                        val invoices = uiState.currentSummary?.invoices ?: emptyList()
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            modifier = Modifier.fillMaxSize()
                         ) {
+                            // 區域 3: 分區抬頭
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "消費紀錄",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textSecondary
+                                    )
+
+                                    Text(
+                                        text = "共 ${invoices.size} 筆",
+                                        fontSize = 12.sp,
+                                        color = textSecondary
+                                    )
+                                }
+                            }
+
+                            // 區域 4: 發票卡片清單 (無品項圖示、商家抬頭完整多行換行、號碼與日期單行平鋪)
                             items(
                                 items = invoices,
                                 key = { it.invNum }
@@ -164,7 +165,7 @@ fun InvoiceListScreen(
                                             )
                                         )
                                     },
-                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                                 )
                             }
 
@@ -180,114 +181,91 @@ fun InvoiceListScreen(
 }
 
 /**
- * 雙月份期別切換器元件 (BillingPeriodSelector)
+ * 輕量沉浸期別選取帶 (PeriodNavigationStrip)
+ * 規格保證：
+ * 1. 排版整體水平置中，遠離螢幕左側 36dp 滑動手勢碰撞區。
+ * 2. 使用對稱幾何向量 KeyboardArrowLeft / Right，告別視覺歪斜。
+ * 3. 達當前最新期別時禁用右側箭頭，鎖定無法檢視未來月份。
  */
 @Composable
-private fun BillingPeriodSelector(
+private fun PeriodNavigationStrip(
     period: BillingPeriod,
+    canGoNext: Boolean,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val shape = RoundedCornerShape(16.dp)
     val textPrimary = if (isDark) AppColors.textPrimaryDark else AppColors.textPrimaryLight
     val textSecondary = if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
-    val isCurrent = period == BillingPeriod.current()
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(if (isDark) AppColors.surfaceDark else Color.White)
-            .border(
-                width = 1.dp,
-                color = if (isDark) AppColors.borderDark else AppColors.borderLight,
-                shape = shape
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        IconButton(
+            onClick = onPrevious,
+            modifier = Modifier.size(44.dp)
         ) {
-            IconButton(
-                onClick = onPrevious,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
-                    contentDescription = "上一期別",
-                    modifier = Modifier.size(16.dp),
-                    tint = textSecondary
-                )
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = "上一期別",
+                modifier = Modifier.size(24.dp),
+                tint = textSecondary
+            )
+        }
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = period.displayTitle,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textPrimary
-                    )
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = period.displayTitle,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = textPrimary
+            )
 
-                    if (isCurrent) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.06f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "當期",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = textPrimary
-                            )
-                        }
-                    }
-                }
+            Spacer(modifier = Modifier.height(2.dp))
 
-                Text(
-                    text = "${period.queryStartDate} ~ ${period.queryEndDate}",
-                    fontSize = 11.sp,
-                    color = textSecondary
-                )
-            }
+            Text(
+                text = "${period.apiStartDate} ~ ${period.queryEndDate}",
+                fontSize = 12.sp,
+                color = textSecondary
+            )
+        }
 
-            IconButton(
-                onClick = onNext,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                    contentDescription = "下一期別",
-                    modifier = Modifier.size(16.dp),
-                    tint = textSecondary
-                )
-            }
+        IconButton(
+            onClick = onNext,
+            enabled = canGoNext,
+            modifier = Modifier
+                .size(44.dp)
+                .alpha(if (canGoNext) 1f else 0.25f)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "下一期別",
+                modifier = Modifier.size(24.dp),
+                tint = textSecondary
+            )
         }
     }
 }
 
 /**
- * 本期消費總覽統計卡 (PeriodExpenseSummaryCard)
+ * 大器戰情消費看板 (ExpenseHeroDashboard)
+ * 規格保證：
+ * 建立全頁強烈的視覺焦點 (Focal Point)，大字體 Typography 凸顯金額。
  */
 @Composable
-private fun PeriodExpenseSummaryCard(
+private fun ExpenseHeroDashboard(
     totalAmount: Long,
     invoiceCount: Int,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(22.dp)
     val textPrimary = if (isDark) AppColors.textPrimaryDark else AppColors.textPrimaryLight
     val textSecondary = if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
 
@@ -295,10 +273,10 @@ private fun PeriodExpenseSummaryCard(
         modifier = modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 6.dp,
+                elevation = 8.dp,
                 shape = shape,
-                spotColor = if (isDark) Color.Black.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.08f),
-                ambientColor = if (isDark) Color.Black.copy(alpha = 0.20f) else Color.Black.copy(alpha = 0.04f)
+                spotColor = if (isDark) Color.Black.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.08f),
+                ambientColor = if (isDark) Color.Black.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.04f)
             )
             .clip(shape)
             .background(if (isDark) AppColors.surfaceDark else Color.White)
@@ -307,48 +285,57 @@ private fun PeriodExpenseSummaryCard(
                 color = if (isDark) AppColors.borderDark else AppColors.borderLight,
                 shape = shape
             )
-            .padding(18.dp)
+            .padding(horizontal = 22.dp, vertical = 20.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column {
-                Text(
-                    text = "本期累積消費",
-                    fontSize = 12.sp,
-                    color = textSecondary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "NT$ $totalAmount",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textPrimary
-                )
-            }
+            Text(
+                text = "本期累積消費",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = textSecondary
+            )
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "共 $invoiceCount 筆發票",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
+                    text = "NT$ $totalAmount",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = textPrimary
                 )
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = "共 $invoiceCount 筆發票",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = textSecondary
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * 單筆發票卡片元件 (InvoiceListItemCard)
- * 純淨呈現：商家、時間、發票號碼與金額，無狀態文字與中獎標籤。
+ * 精緻化發票卡片 (InvoiceListItemCard)
+ * 規格保證：
+ * 1. 無品項圖示，釋放完整橫向空間。
+ * 2. 商家抬頭完整顯示，支援自然多行換行，不截斷。
+ * 3. 發票號碼與開立日期單行平鋪，絕不發生斷字折行。
+ * 4. 僅顯示開立日期 (invoice.invDate)，不顯示秒數時間。
  */
 @Composable
 private fun InvoiceListItemCard(
@@ -372,7 +359,7 @@ private fun InvoiceListItemCard(
                 shape = shape
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .padding(horizontal = 18.dp, vertical = 14.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -381,53 +368,66 @@ private fun InvoiceListItemCard(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
+                // 商家抬頭：完整顯示，支援自然折行，無 ellipsis
                 Text(
                     text = invoice.sellerName.ifBlank { "電子發票" },
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    lineHeight = 20.sp
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
+                // 發票號碼與日期：單行平鋪
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = invoice.fullDateTime,
+                        text = invoice.formattedInvNum,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Medium,
+                        color = textSecondary
+                    )
+
+                    Text(
+                        text = "·",
                         fontSize = 12.sp,
                         color = textSecondary
                     )
 
                     Text(
-                        text = invoice.formattedInvNum,
+                        text = invoice.invDate,
                         fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
                         color = textSecondary
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
-            Text(
-                text = "$${invoice.amount}",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = textPrimary
-            )
+            // 金額與進入明細箭頭
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "$${invoice.amount}",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textPrimary
+                )
 
-            Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "查看明細",
-                modifier = Modifier.size(18.dp),
-                tint = textSecondary
-            )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "查看明細",
+                    modifier = Modifier.size(18.dp),
+                    tint = textSecondary
+                )
+            }
         }
     }
 }
@@ -470,7 +470,7 @@ private fun InvoiceListSkeleton() {
                         color = if (isDark) AppColors.borderDark else AppColors.borderLight,
                         shape = shape
                     )
-                    .padding(16.dp)
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -479,7 +479,7 @@ private fun InvoiceListSkeleton() {
                     Column(modifier = Modifier.weight(1f)) {
                         Box(
                             modifier = Modifier
-                                .width(120.dp)
+                                .width(140.dp)
                                 .height(14.dp)
                                 .alpha(alpha)
                                 .clip(RoundedCornerShape(4.dp))
@@ -498,7 +498,7 @@ private fun InvoiceListSkeleton() {
 
                     Box(
                         modifier = Modifier
-                            .width(50.dp)
+                            .width(52.dp)
                             .height(18.dp)
                             .alpha(alpha)
                             .clip(RoundedCornerShape(4.dp))

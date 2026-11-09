@@ -9,9 +9,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class InvoiceHeader(
     val invNum: String,
-    val invPeriod: String,
+    val invPeriod: String = "",
     val sellerName: String,
-    val sellerBan: String,
+    val sellerBan: String = "",
     val sellerAddress: String = "",
     val amount: Int,
     val invDate: String,

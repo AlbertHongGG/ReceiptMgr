@@ -43,19 +43,56 @@ data class BillingPeriod(
         get() = String.format(Locale.US, "%d%02d", rocYear, endMonth)
 
     /**
+     * 該期起始日期物件 (起始月 1 號)
+     */
+    val startDateLocalDate: LocalDate
+        get() = LocalDate.of(year, startMonth, 1)
+
+    /**
+     * 該期自然結束日期物件 (結束月之最後一日)
+     */
+    val naturalEndDateLocalDate: LocalDate
+        get() = YearMonth.of(year, endMonth).atEndOfMonth()
+
+    /**
      * API 查詢起始日期 (格式: YYYY/MM/DD，固定為起始月份 1 號)
      */
-    val queryStartDate: String
+    val apiStartDate: String
         get() = String.format(Locale.US, "%04d/%02d/01", year, startMonth)
 
     /**
-     * API 查詢結束日期 (格式: YYYY/MM/DD，自動計算結束月份最後一日)
+     * API 查詢起始日期 (兼容舊名稱)
+     */
+    val queryStartDate: String
+        get() = apiStartDate
+
+    /**
+     * API 自然結束日期 (格式: YYYY/MM/DD，自然月份最後一日)
      */
     val queryEndDate: String
-        get() {
-            val lastDay = YearMonth.of(year, endMonth).atEndOfMonth().dayOfMonth
-            return String.format(Locale.US, "%04d/%02d/%02d", year, endMonth, lastDay)
-        }
+        get() = String.format(Locale.US, "%04d/%02d/%02d", year, endMonth, naturalEndDateLocalDate.dayOfMonth)
+
+    /**
+     * 傳送至財政部 API 之精準結束日期 (格式: YYYY/MM/DD)
+     * 規格保證：
+     * 若為當前正在進行中之期別，結束日期嚴格封頂在今天 (Today)，絕不傳送未來日期至伺服器。
+     * 若為過去期別，則為該期最後一日。
+     */
+    fun getApiEndDate(referenceDate: LocalDate = LocalDate.now(ZoneId.of("Asia/Taipei"))): String {
+        val naturalEnd = naturalEndDateLocalDate
+        val effectiveEnd = if (naturalEnd.isAfter(referenceDate)) referenceDate else naturalEnd
+        return String.format(Locale.US, "%04d/%02d/%02d", effectiveEnd.year, effectiveEnd.monthValue, effectiveEnd.dayOfMonth)
+    }
+
+    /**
+     * 判定是否落於財政部 UPI 伺服器之發票查詢窗口內。
+     * 官方 carrierInvChk 規格限制：僅提供「當期與前 4 期（合計共 5 期 / 最長半年）」之線上查詢。
+     */
+    fun isWithinMofQueryWindow(currentPeriod: BillingPeriod = BillingPeriod.current()): Boolean {
+        val diffInMonths = (currentPeriod.year - this.year) * 12 + (currentPeriod.endMonth - this.endMonth)
+        val diffInPeriods = diffInMonths / 2
+        return diffInPeriods in 0..4
+    }
 
     /**
      * 人類易讀介面標題 (例如 "115年 05-06月")

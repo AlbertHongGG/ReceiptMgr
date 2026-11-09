@@ -41,6 +41,18 @@ class InvoiceRepositoryImpl(
             }
         }
 
+        // 若該期別已超出財政部 5 期 (半年) 官方保存期限，直接回傳合規空資料，避免伺服器報 903 參數錯誤
+        if (!period.isWithinMofQueryWindow()) {
+            val emptySummary = PeriodInvoiceSummary(
+                period = period,
+                totalAmount = 0L,
+                invoiceCount = 0,
+                invoices = emptyList()
+            )
+            headerCache[period] = emptySummary
+            return@withContext Result.success(emptySummary)
+        }
+
         val session = sessionDataSource.getSession()
             ?: return@withContext Result.failure(UpiProtocolException.SessionUnavailable("找不到有效的載具會話"))
 
@@ -50,23 +62,40 @@ class InvoiceRepositoryImpl(
 
         val reqDto = UpiInvoiceHeaderReqDto(
             cardNo = session.barcode,
-            startDate = period.queryStartDate,
-            endDate = period.queryEndDate,
+            startDate = period.apiStartDate,
+            endDate = period.getApiEndDate(),
             onlyWinningInv = "A",
             page = 1
         )
 
-        upiApiClient.queryHeaders(reqDto, session).map { rawInvoices ->
-            // 依開立日期與時間降序排列 (最新發票置頂)
-            val sortedInvoices = rawInvoices.sortedWith(
-                compareByDescending<InvoiceHeader> { it.invDate }
-                    .thenByDescending { it.invoiceTime }
-                    .thenByDescending { it.invNum }
-            )
-            val summary = PeriodInvoiceSummary.fromInvoices(period, sortedInvoices)
-            headerCache[period] = summary
-            summary
-        }
+        upiApiClient.queryHeaders(reqDto, session).fold(
+            onSuccess = { rawInvoices ->
+                // 依開立日期與時間降序排列 (最新發票置頂)
+                val sortedInvoices = rawInvoices.sortedWith(
+                    compareByDescending<InvoiceHeader> { it.invDate }
+                        .thenByDescending { it.invoiceTime }
+                        .thenByDescending { it.invNum }
+                )
+                val summary = PeriodInvoiceSummary.fromInvoices(period, sortedInvoices)
+                headerCache[period] = summary
+                Result.success(summary)
+            },
+            onFailure = { error ->
+                // 若伺服器因歷史期別回傳 903 參數錯誤，進行領域防禦轉譯為合法空資料
+                if (error is UpiProtocolException.BusinessRejected && error.code == "903") {
+                    val emptySummary = PeriodInvoiceSummary(
+                        period = period,
+                        totalAmount = 0L,
+                        invoiceCount = 0,
+                        invoices = emptyList()
+                    )
+                    headerCache[period] = emptySummary
+                    Result.success(emptySummary)
+                } else {
+                    Result.failure(error)
+                }
+            }
+        )
     }
 
     override suspend fun getInvoiceDetail(

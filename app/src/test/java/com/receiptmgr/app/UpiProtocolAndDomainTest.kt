@@ -251,4 +251,65 @@ class UpiProtocolAndDomainTest {
         assertEquals("260", detail.items[0].unitPrice)
         assertEquals("89.5", detail.items[1].unitPrice)
     }
+
+    @Test
+    fun `BillingPeriod getApiEndDate caps at today for current period and keeps natural end for past periods`() {
+        val today = LocalDate.of(2026, 11, 10)
+        
+        // 當期 (11-12月)：結束日期必須封頂在今天 (2026/11/10)，絕不傳送 2026/12/31
+        val currentPeriod = BillingPeriod(year = 2026, endMonth = 12)
+        assertEquals("2026/11/01", currentPeriod.apiStartDate)
+        assertEquals("2026/11/10", currentPeriod.getApiEndDate(referenceDate = today))
+        assertEquals("2026/12/31", currentPeriod.queryEndDate) // 自然結束日依然保持完整
+
+        // 過去期別 (09-10月)：結束日期為 2026/10/31，不受今日限制
+        val pastPeriod = BillingPeriod(year = 2026, endMonth = 10)
+        assertEquals("2026/09/01", pastPeriod.apiStartDate)
+        assertEquals("2026/10/31", pastPeriod.getApiEndDate(referenceDate = today))
+    }
+
+    @Test
+    fun `BillingPeriod isWithinMofQueryWindow correctly restricts to current plus previous 4 periods`() {
+        val current = BillingPeriod(year = 2026, endMonth = 12) // 115年 11-12月 (當期)
+
+        // 5 個有效查詢期別
+        assertTrue("當期 11-12月 必須在查詢窗口內", current.isWithinMofQueryWindow(current))
+        assertTrue("前 1 期 09-10月 必須在查詢窗口內", BillingPeriod(2026, 10).isWithinMofQueryWindow(current))
+        assertTrue("前 2 期 07-08月 必須在查詢窗口內", BillingPeriod(2026, 8).isWithinMofQueryWindow(current))
+        assertTrue("前 3 期 05-06月 必須在查詢窗口內", BillingPeriod(2026, 6).isWithinMofQueryWindow(current))
+        assertTrue("前 4 期 03-04月 必須在查詢窗口內", BillingPeriod(2026, 4).isWithinMofQueryWindow(current))
+
+        // 超出 5 期之期別 (財政部回傳 903)
+        assertFalse("前 5 期 01-02月 必須超出查詢窗口", BillingPeriod(2026, 2).isWithinMofQueryWindow(current))
+        assertFalse("前一年 11-12月 必須超出查詢窗口", BillingPeriod(2025, 12).isWithinMofQueryWindow(current))
+
+        // 未來期別
+        assertFalse("未來期別 116年 01-02月 不得落入窗口", BillingPeriod(2027, 2).isWithinMofQueryWindow(current))
+    }
+
+    @Test
+    fun `InvoiceListUiState strictly isolates data by BillingPeriod and prevents cross-period ghost leaks`() {
+        val periodMarApr = BillingPeriod(2026, 4)
+        val periodJanFeb = BillingPeriod(2026, 2)
+        val sampleInvoices = listOf(
+            InvoiceHeader(
+                invNum = "ZK51302118",
+                invDate = "2026-03-02",
+                invoiceTime = "19:27:46",
+                amount = 120,
+                sellerName = "致興商行"
+            )
+        )
+        val summaryMarApr = PeriodInvoiceSummary.fromInvoices(periodMarApr, sampleInvoices)
+
+        // 建立狀態模型，槽位中僅有 03-04 月的資料
+        val state = com.receiptmgr.app.presentation.features.invoice.list.InvoiceListUiState(
+            currentPeriod = periodJanFeb, // 目前切換至 01-02 月
+            periodSummaries = mapOf(periodMarApr to summaryMarApr)
+        )
+
+        // 核心斷言：當前期別為 01-02 月時，currentSummary 必須嚴格為 null，絕不可讀到 03-04 月的資料！
+        org.junit.Assert.assertNull("01-02月絕不得洩漏 03-04月的資料", state.currentSummary)
+        org.junit.Assert.assertNull("兼容屬性 summary 亦必須為 null", state.summary)
+    }
 }
