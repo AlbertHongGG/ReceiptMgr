@@ -61,6 +61,17 @@ class UiaAuthApiClient(
             }
             ldataBody = requestJson.toString()
 
+            val requestMap = mapOf(
+                "endpoint" to "/mid/v1/login",
+                "phone" to requestData.phone,
+                "app_id" to requestData.appId,
+                "app_version" to requestData.appVersion,
+                "device_model" to requestData.deviceModel,
+                "os_version" to requestData.osVersion,
+                "uuid" to requestData.uuid,
+                "ldata" to ldata
+            )
+
             // 2. 建構 OkHttp HTTP/2 請求 (模擬官方行動客戶端)
             val httpRequest = Request.Builder()
                 .url(UIA_LOGIN_ENDPOINT)
@@ -83,12 +94,20 @@ class UiaAuthApiClient(
 
             if (!response.isSuccessful) {
                 val errorMsg = "HTTP $httpStatus: ${rawResponseBody.ifEmpty { response.message }}"
+                val responseMap = mapOf(
+                    "status" to httpStatus.toString(),
+                    "raw_response" to rawResponseBody,
+                    "error" to errorMsg
+                )
                 apiLogManager.logApiInteraction(
                     ApiLogRecord(
                         endpoint = "POST /mid/v1/login",
+                        agentName = "帳號授權",
                         method = "POST",
                         status = httpStatus,
                         durationMs = durationMs,
+                        request = requestMap,
+                        response = responseMap,
                         requestHeaders = headersMap,
                         requestBody = ldataBody,
                         responseBody = rawResponseBody,
@@ -107,12 +126,23 @@ class UiaAuthApiClient(
 
             if (result != 0) {
                 val err = if (message.isNotBlank()) message else "登入失敗 (錯誤碼: $result)"
+                val responseMap = mutableMapOf<String, String>(
+                    "status" to httpStatus.toString(),
+                    "result" to result.toString(),
+                    "error" to err
+                )
+                if (respJson.has("id")) responseMap["id"] = respJson.optString("id")
+                if (respJson.has("data")) responseMap["data"] = respJson.optString("data")
+
                 apiLogManager.logApiInteraction(
                     ApiLogRecord(
                         endpoint = "POST /mid/v1/login",
+                        agentName = "帳號授權",
                         method = "POST",
                         status = httpStatus,
                         durationMs = durationMs,
+                        request = requestMap,
+                        response = responseMap,
                         requestHeaders = headersMap,
                         requestBody = ldataBody,
                         responseBody = rawResponseBody,
@@ -127,12 +157,20 @@ class UiaAuthApiClient(
             val encryptedPayload = respJson.optString("payload", "")
             if (encryptedPayload.isBlank()) {
                 val err = "伺服器回應未包含 payload 密文"
+                val responseMap = mapOf(
+                    "status" to httpStatus.toString(),
+                    "raw_response" to rawResponseBody,
+                    "error" to err
+                )
                 apiLogManager.logApiInteraction(
                     ApiLogRecord(
                         endpoint = "POST /mid/v1/login",
+                        agentName = "帳號授權",
                         method = "POST",
                         status = httpStatus,
                         durationMs = durationMs,
+                        request = requestMap,
+                        response = responseMap,
                         requestHeaders = headersMap,
                         requestBody = ldataBody,
                         responseBody = rawResponseBody,
@@ -155,13 +193,22 @@ class UiaAuthApiClient(
                 rawServerResponseJson = rawResponseBody
             )
 
+            val responseMap = mutableMapOf<String, String>(
+                "status" to httpStatus.toString(),
+                "payload" to decryptedJsonString,
+                "raw_response" to rawResponseBody
+            )
+
             // 6. 記錄成功稽核日誌
             apiLogManager.logApiInteraction(
                 ApiLogRecord(
                     endpoint = "POST /mid/v1/login",
+                    agentName = "帳號授權",
                     method = "POST",
                     status = httpStatus,
                     durationMs = durationMs,
+                    request = requestMap,
+                    response = responseMap,
                     requestHeaders = headersMap,
                     requestBody = ldataBody,
                     responseBody = rawResponseBody,
@@ -175,17 +222,27 @@ class UiaAuthApiClient(
         } catch (e: Exception) {
             val durationMs = System.currentTimeMillis() - startTime
             Log.e(TAG, "Login API failed: ${e.message}", e)
+            val requestMap = mapOf(
+                "endpoint" to "/mid/v1/login",
+                "phone" to requestData.phone
+            )
+            val responseMap = mapOf(
+                "error" to (e.message ?: "未知例外異常")
+            )
             apiLogManager.logApiInteraction(
                 ApiLogRecord(
                     endpoint = "POST /mid/v1/login",
+                    agentName = "帳號授權",
                     method = "POST",
                     status = httpStatus,
                     durationMs = durationMs,
+                    request = requestMap,
+                    response = responseMap,
                     requestHeaders = headersMap,
                     requestBody = ldataBody,
                     responseBody = rawResponseBody,
                     decryptedPayload = null,
-                    error = e.message ?: "連線或解密異常",
+                    error = e.message ?: "未知異常",
                     isSuccess = false
                 )
             )

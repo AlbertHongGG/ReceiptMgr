@@ -223,47 +223,42 @@ private fun ApiLogCardContent(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
-    // 狀態語意顏色計算
-    val (statusBgColor, statusTextColor, iconBgColor, iconTintColor) = when {
+    // 狀態語意顏色計算 (僅作用於狀態徽章，圖示保持中性黑白)
+    val (statusBgColor, statusTextColor) = when {
         log.status in 200..299 -> {
             val greenLight = Color(0xFF059669)
             val greenDark = Color(0xFF34D399)
-            val fg = if (isDark) greenDark else greenLight
-            Quadruple(
+            Pair(
                 Color(0xFF10B981).copy(alpha = if (isDark) 0.20f else 0.12f),
-                fg,
-                Color(0xFF10B981).copy(alpha = if (isDark) 0.20f else 0.12f),
-                fg
+                if (isDark) greenDark else greenLight
             )
         }
         log.status in 400..499 -> {
             val red = Color(0xFFEF4444)
-            Quadruple(
-                red.copy(alpha = if (isDark) 0.22f else 0.12f),
-                red,
+            Pair(
                 red.copy(alpha = if (isDark) 0.22f else 0.12f),
                 red
             )
         }
         log.status >= 500 -> {
             val darkRed = Color(0xFFDC2626)
-            Quadruple(
-                darkRed.copy(alpha = if (isDark) 0.25f else 0.15f),
-                darkRed,
+            Pair(
                 darkRed.copy(alpha = if (isDark) 0.25f else 0.15f),
                 darkRed
             )
         }
         else -> {
             val neutral = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
-            Quadruple(
+            Pair(
                 neutral.copy(alpha = 0.12f),
-                neutral,
-                neutral.copy(alpha = 0.10f),
                 neutral
             )
         }
     }
+
+    // 左側圖示：使用者指定維持中性黑白 Slate 配色，移除綠色
+    val iconBgColor = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+    val iconTintColor = if (isDark) Color.White else Color(0xFF1E293B)
 
     Box(
         modifier = modifier
@@ -297,7 +292,7 @@ private fun ApiLogCardContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // 左側狀態顏色圖示圓圈
+            // 左側中性黑白圖示圓圈
             Box(
                 modifier = Modifier
                     .size(42.dp)
@@ -316,9 +311,19 @@ private fun ApiLogCardContent(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                // 第一行：項目主標題 + Method 徽章 + 狀態碼徽章
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(
+                        text = log.title,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color.White else Color(0xFF1E293B)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     // Method 標籤 (POST / GET 語意色彩)
                     val methodBg = if (log.method.equals("POST", ignoreCase = true)) {
                         Color(0xFF3B82F6).copy(alpha = if (isDark) 0.22f else 0.12f)
@@ -345,7 +350,7 @@ private fun ApiLogCardContent(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     // HTTP 狀態碼標籤 (綠 / 紅)
                     Box(
@@ -365,6 +370,7 @@ private fun ApiLogCardContent(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                // 第二行：格式化時間與耗時毫秒
                 Text(
                     text = if (log.durationMs > 0) "${log.displayTime} · ${log.durationMs} ms" else log.displayTime,
                     fontSize = 12.sp,
@@ -381,10 +387,3 @@ private fun ApiLogCardContent(
         }
     }
 }
-
-private data class Quadruple<A, B, C, D>(
-    val first: A,
-    val second: B,
-    val third: C,
-    val fourth: D
-)

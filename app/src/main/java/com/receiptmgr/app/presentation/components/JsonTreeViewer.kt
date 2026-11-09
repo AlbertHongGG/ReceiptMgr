@@ -41,6 +41,7 @@ fun JsonTreeViewer(
     data: Any?,
     rootName: String? = null,
     modifier: Modifier = Modifier,
+    initialExpanded: Boolean = false,
     isDark: Boolean = isSystemInDarkTheme()
 ) {
     val parsedData = remember(data) {
@@ -65,7 +66,8 @@ fun JsonTreeViewer(
                     keyName = rootName,
                     data = parsedData,
                     isDark = isDark,
-                    isRoot = true
+                    isRoot = true,
+                    initialExpanded = initialExpanded
                 )
             }
         } else if (parsedData is JSONObject) {
@@ -75,7 +77,8 @@ fun JsonTreeViewer(
                     keyName = key,
                     data = parsedData.opt(key),
                     isDark = isDark,
-                    isRoot = true
+                    isRoot = true,
+                    initialExpanded = initialExpanded
                 )
             }
         } else if (parsedData is JSONArray) {
@@ -86,7 +89,8 @@ fun JsonTreeViewer(
                         keyName = "[$i]",
                         data = item,
                         isDark = isDark,
-                        isRoot = true
+                        isRoot = true,
+                        initialExpanded = initialExpanded
                     )
                 }
             }
@@ -95,7 +99,8 @@ fun JsonTreeViewer(
                 keyName = "data",
                 data = parsedData,
                 isDark = isDark,
-                isRoot = true
+                isRoot = true,
+                initialExpanded = initialExpanded
             )
         }
     }
@@ -127,16 +132,28 @@ private fun JsonNodeRenderer(
     keyName: String,
     data: Any?,
     isDark: Boolean,
-    isRoot: Boolean = false
+    isRoot: Boolean = false,
+    initialExpanded: Boolean = false
 ) {
     if (!isValidDisplayNode(data)) return
 
-    var expanded by remember { mutableStateOf(isRoot) }
+    val resolvedData = remember(data) {
+        if (data is String) {
+            val t = data.trim()
+            if (t.startsWith("{") && t.endsWith("}")) {
+                runCatching { JSONObject(t) }.getOrNull() ?: data
+            } else if (t.startsWith("[") && t.endsWith("]")) {
+                runCatching { JSONArray(t) }.getOrNull() ?: data
+            } else data
+        } else data
+    }
 
-    when (data) {
+    var expanded by remember { mutableStateOf(if (isRoot) initialExpanded else false) }
+
+    when (resolvedData) {
         is JSONObject -> {
-            val keys = remember(data) {
-                data.keys().asSequence().filter { isValidDisplayNode(data.opt(it)) }.toList()
+            val keys = remember(resolvedData) {
+                resolvedData.keys().asSequence().filter { isValidDisplayNode(resolvedData.opt(it)) }.toList()
             }
             val count = keys.size
             if (count == 0 && !isRoot) return
@@ -193,7 +210,7 @@ private fun JsonNodeRenderer(
                             keys.forEach { childKey ->
                                 JsonNodeRenderer(
                                     keyName = childKey,
-                                    data = data.opt(childKey),
+                                    data = resolvedData.opt(childKey),
                                     isDark = isDark,
                                     isRoot = false
                                 )
@@ -205,7 +222,7 @@ private fun JsonNodeRenderer(
         }
 
         is JSONArray -> {
-            val count = data.length()
+            val count = resolvedData.length()
             if (count == 0 && !isRoot) return
 
             Box(
@@ -260,7 +277,7 @@ private fun JsonNodeRenderer(
                             for (i in 0 until count) {
                                 JsonNodeRenderer(
                                     keyName = "[$i]",
-                                    data = data.opt(i),
+                                    data = resolvedData.opt(i),
                                     isDark = isDark,
                                     isRoot = false
                                 )
@@ -274,7 +291,7 @@ private fun JsonNodeRenderer(
         else -> {
             RenderPrimitiveRow(
                 keyName = keyName,
-                data = data,
+                data = resolvedData,
                 isDark = isDark
             )
         }

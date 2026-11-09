@@ -24,7 +24,7 @@ import kotlin.random.Random
  * API 通訊稽核日誌管理器 (ApiLogManager)。
  * 1:1 對標 LensWise 核心日誌引擎：
  * 1. 記憶體解耦快讀（Memory Decoupling）：列表載入僅自檔名與屬性讀取輕量元資料，拒絕在 Heap 常駐巨量 JSON。
- * 2. 確定性分類過濾與分頁支援：支援 6 大發票 API 類別篩選與專屬空狀態。
+ * 2. 確定性分類過濾與分頁支援：支援各領域類別篩選與專屬空狀態。
  * 3. 顆粒化刪除管理：支援長按拖曳單筆銷毀、分類批次抹除與全域清空。
  */
 class ApiLogManager(private val context: Context) {
@@ -74,15 +74,15 @@ class ApiLogManager(private val context: Context) {
                 val random = Random.nextInt(100000, 999999)
 
                 val category = ApiCategoryType.fromEndpoint(record.endpoint)
-                val safeEndpoint = record.endpoint.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-                val fileName = "${yyyyMMdd}_${hhmmss}_${category.id}_${safeEndpoint}_${record.status}_${record.durationMs}_${random}.json"
+                // 定長檔名協議：yyyyMMdd_HHmmss_category_status_durationMs_random.json
+                val fileName = "${yyyyMMdd}_${hhmmss}_${category.id}_${record.status}_${record.durationMs}_${random}.json"
                 val file = File(logDir, fileName)
 
                 val recordToWrite = if (record.timestamp.isEmpty()) {
                     val isoTimestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US).format(now)
-                    record.copy(timestamp = isoTimestamp, categoryId = category.id)
+                    record.copy(timestamp = isoTimestamp, categoryId = category.id, agentName = category.displayName)
                 } else {
-                    record.copy(categoryId = category.id)
+                    record.copy(categoryId = category.id, agentName = category.displayName)
                 }
 
                 val jsonString = logJson.encodeToString(recordToWrite)
@@ -113,8 +113,7 @@ class ApiLogManager(private val context: Context) {
 
                 var dtMillis = file.lastModified()
                 var displayTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(dtMillis))
-                var category = ApiCategoryType.ALL
-                var endpoint = "API Request"
+                var category = ApiCategoryType.AUTH
                 var status = 200
                 var durationMs = 0L
 
@@ -131,33 +130,26 @@ class ApiLogManager(private val context: Context) {
                 }
 
                 if (parts.size >= 3) {
-                    category = ApiCategoryType.fromId(parts[2]) ?: ApiCategoryType.ALL
+                    category = ApiCategoryType.fromId(parts[2]) ?: ApiCategoryType.AUTH
                 }
 
                 if (parts.size >= 4) {
-                    endpoint = parts[3].replace("_", " ")
+                    status = parts[3].toIntOrNull() ?: 200
                 }
 
                 if (parts.size >= 5) {
-                    status = parts[4].toIntOrNull() ?: 200
+                    durationMs = parts[4].toLongOrNull() ?: 0L
                 }
 
-                if (parts.size >= 6) {
-                    durationMs = parts[5].toLongOrNull() ?: 0L
-                }
-
-                val title = if (endpoint.isNotBlank() && endpoint != "API Request") {
-                    endpoint
-                } else {
-                    category.displayName
-                }
+                // 主標題確定性綁定業務名稱（如「帳號授權」）
+                val title = category.displayName
 
                 ApiLogModel(
                     id = file.name,
                     file = file,
                     title = title,
-                    endpoint = endpoint,
-                    method = if (endpoint.startsWith("GET")) "GET" else "POST",
+                    endpoint = if (category == ApiCategoryType.AUTH) "POST /mid/v1/login" else category.displayName,
+                    method = "POST",
                     status = status,
                     durationMs = durationMs,
                     displayTime = displayTime,

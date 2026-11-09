@@ -13,10 +13,15 @@ import java.io.File
 data class ApiLogRecord(
     val timestamp: String = "",
     val endpoint: String = "",
+    val agentName: String = "帳號授權",
     val method: String = "POST",
     val status: Int = 200,
     val durationMs: Long = 0L,
-    val categoryId: String = "all",
+    val categoryId: String = "auth",
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val request: Map<String, String>? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val response: Map<String, String>? = null,
     val requestHeaders: Map<String, String> = emptyMap(),
     val requestBody: String = "",
     val responseBody: String = "",
