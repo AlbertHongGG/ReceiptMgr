@@ -1,6 +1,5 @@
 package com.receiptmgr.app.presentation.features.settings
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,7 +8,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DataObject
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.History
@@ -51,14 +49,11 @@ fun SettingsScreen(
     val navigator = LocalCupertinoNavigator.current
     val clipboardManager = LocalClipboardManager.current
     val sessionState by viewModel.sessionState.collectAsState()
-    val darkModePref by viewModel.darkModeFlow.collectAsState()
     val apiLogging by viewModel.apiLoggingFlow.collectAsState()
     val notificationLogging by viewModel.notificationLoggingFlow.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
-    val isSystemDark = isSystemInDarkTheme()
 
     var showClearSessionDrawer by remember { mutableStateOf(false) }
-    val currentDarkMode = darkModePref ?: isSystemDark
 
     ImmersiveScaffold {
         Column(
@@ -187,22 +182,6 @@ fun SettingsScreen(
                     iconColor = AppColors.primary,
                     title = "應用程式版本",
                     subtitle = "v${uiState.appVersion}"
-                )
-            }
-
-            // 第四分組：外觀設定
-            SettingsSection(title = "系統外觀") {
-                SettingsTile(
-                    icon = Icons.Default.DarkMode,
-                    iconColor = AppColors.primary,
-                    title = "深色模式",
-                    subtitle = if (currentDarkMode) "已啟用" else "跟隨系統",
-                    trailing = {
-                        AppSwitch(
-                            checked = currentDarkMode,
-                            onCheckedChange = { viewModel.setDarkMode(it) }
-                        )
-                    }
                 )
             }
 

@@ -30,7 +30,6 @@ class SettingsViewModel(
     val sessionState: StateFlow<SessionState> = authRepository.sessionState
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SessionState.Unauthenticated)
 
-    val darkModeFlow: StateFlow<Boolean?> = settingsRepository.darkModeFlow
     val apiLoggingFlow: StateFlow<Boolean> = settingsRepository.apiLoggingEnabledFlow
     val notificationLoggingFlow: StateFlow<Boolean> = settingsRepository.notificationLoggingEnabledFlow
 
@@ -43,12 +42,6 @@ class SettingsViewModel(
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
-
-    fun setDarkMode(dark: Boolean?) {
-        viewModelScope.launch {
-            settingsRepository.setDarkMode(dark)
-        }
-    }
 
     fun setApiLogging(enabled: Boolean) {
         viewModelScope.launch {

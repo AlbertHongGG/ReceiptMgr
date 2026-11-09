@@ -21,18 +21,11 @@ class SettingsRepositoryImpl(
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    override val darkModeFlow: StateFlow<Boolean?> = settingsDataStore.darkModeFlow
-        .stateIn(scope, SharingStarted.Eagerly, null)
-
     override val apiLoggingEnabledFlow: StateFlow<Boolean> = settingsDataStore.apiLoggingEnabledFlow
         .stateIn(scope, SharingStarted.Eagerly, apiLogManager.isLoggingEnabled())
 
     override val notificationLoggingEnabledFlow: StateFlow<Boolean> = settingsDataStore.notificationLoggingEnabledFlow
         .stateIn(scope, SharingStarted.Eagerly, notificationLogManager.isLoggingEnabled())
-
-    override suspend fun setDarkMode(dark: Boolean?) {
-        settingsDataStore.setDarkMode(dark)
-    }
 
     override suspend fun setApiLoggingEnabled(enabled: Boolean) {
         settingsDataStore.setApiLoggingEnabled(enabled)

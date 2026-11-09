@@ -15,7 +15,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -62,10 +61,7 @@ class MainActivity : ComponentActivity() {
         val appContainer = (application as ReceiptMgrApplication).appContainer
 
         setContent {
-            val darkModePref by appContainer.settingsRepository.darkModeFlow.collectAsState()
-            val isDark = darkModePref ?: isSystemInDarkTheme()
-
-            ReceiptMgrTheme(darkTheme = isDark) {
+            ReceiptMgrTheme {
                 var showSplash by rememberSaveable { mutableStateOf(true) }
 
                 AnimatedContent(
