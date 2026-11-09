@@ -1,26 +1,23 @@
 package com.receiptmgr.app.presentation.features.settings
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.DataObject
-import androidx.compose.material.icons.outlined.DeleteForever
-import androidx.compose.material.icons.outlined.Fingerprint
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.PhoneAndroid
-import androidx.compose.material.icons.outlined.Smartphone
-import androidx.compose.material.icons.outlined.ToggleOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -30,7 +27,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -39,6 +35,7 @@ import com.receiptmgr.app.presentation.components.AppSwitch
 import com.receiptmgr.app.presentation.components.ImmersiveScaffold
 import com.receiptmgr.app.presentation.components.NavigationBarsSafeSpacer
 import com.receiptmgr.app.presentation.components.PremiumConfigHeader
+import com.receiptmgr.app.presentation.components.SettingsDivider
 import com.receiptmgr.app.presentation.components.SettingsSection
 import com.receiptmgr.app.presentation.components.SettingsTile
 import com.receiptmgr.app.presentation.components.SwipeToConfirmDrawer
@@ -61,10 +58,7 @@ fun SettingsScreen(
     val isSystemDark = isSystemInDarkTheme()
 
     var showClearSessionDrawer by remember { mutableStateOf(false) }
-
     val currentDarkMode = darkModePref ?: isSystemDark
-    val textPrimary = if (currentDarkMode) Color(0xFFE2E8F0) else Color(0xFF0F172A)
-    val textSecondary = if (currentDarkMode) Color(0xFF94A3B8) else Color(0xFF64748B)
 
     ImmersiveScaffold {
         Column(
@@ -72,162 +66,162 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
+            // 頂部大標題（右滑手勢退棧，零上一頁按鈕）
             PremiumConfigHeader(
-                title = "系統設定",
-                subtitle = "環境、日誌與會話憑證",
-                navigationIcon = {
-                    IconButton(onClick = { navigator.pop() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
-                            tint = textPrimary
+                title = "偏好設定",
+                subtitle = "SYSTEM CONFIGURATION"
+            )
+
+            // 第一分組：會話憑證
+            SettingsSection(title = "會話管理") {
+                when (val state = sessionState) {
+                    is SessionState.Authenticated -> {
+                        SettingsTile(
+                            icon = Icons.Default.AccountCircle,
+                            iconColor = AppColors.primary,
+                            title = "載具帳號",
+                            subtitle = "${state.credentials.phone} (剩餘 ${state.credentials.remainingDays} 天)",
+                            onTap = { navigator.push(AppRoute.Login) }
+                        )
+                        SettingsDivider()
+                        SettingsTile(
+                            icon = Icons.Default.Key,
+                            iconColor = AppColors.primary,
+                            title = "會話憑證",
+                            subtitle = "檢視 ss_me 與 Response Payload",
+                            onTap = { navigator.push(AppRoute.Login) }
+                        )
+                        SettingsDivider()
+                        SettingsTile(
+                            icon = Icons.Default.DeleteOutline,
+                            iconColor = AppColors.danger,
+                            title = "清除會話",
+                            subtitle = "抹除本機 ss_me 金鑰憑證",
+                            isDestructive = true,
+                            onTap = { showClearSessionDrawer = true }
+                        )
+                    }
+
+                    is SessionState.Expired -> {
+                        SettingsTile(
+                            icon = Icons.Default.Key,
+                            iconColor = AppColors.primary,
+                            title = "會話已過期",
+                            subtitle = "帳號 ${state.credentials.phone}，點擊重新登入",
+                            onTap = { navigator.push(AppRoute.Login) }
+                        )
+                    }
+
+                    is SessionState.Unauthenticated -> {
+                        SettingsTile(
+                            icon = Icons.Default.Key,
+                            iconColor = AppColors.primary,
+                            title = "尚未授權",
+                            subtitle = "登入以取得 ss_me 會話簽章金鑰",
+                            onTap = { navigator.push(AppRoute.Login) }
                         )
                     }
                 }
-            )
+            }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 1. 會話管理
-                SettingsSection(title = "會話管理") {
-                    when (val state = sessionState) {
-                        is SessionState.Authenticated -> {
-                            SettingsTile(
-                                icon = Icons.Outlined.Key,
-                                title = "會話憑證",
-                                subtitle = "帳號 ${state.credentials.phone} (剩餘 ${state.credentials.remainingDays} 天)",
-                                onClick = { navigator.push(AppRoute.Login) }
-                            )
-                            SettingsTile(
-                                icon = Icons.Outlined.DeleteForever,
-                                title = "登出憑證",
-                                subtitle = "清除本機 ss_me 與會話資料",
-                                onClick = { showClearSessionDrawer = true }
-                            )
-                        }
+            // 第二分組：日誌稽核 (1:1 整合開關與跳轉)
+            SettingsSection(title = "日誌稽核") {
+                SettingsTile(
+                    icon = Icons.Default.History,
+                    iconColor = AppColors.primary,
+                    title = "通知日誌",
+                    subtitle = "檢視歷史系統通知與提示歷程",
+                    onTap = { navigator.push(AppRoute.NotificationLogs) },
+                    trailing = {
+                        AppSwitch(
+                            checked = notificationLogging,
+                            onCheckedChange = { viewModel.setNotificationLogging(it) }
+                        )
+                    }
+                )
+                SettingsDivider()
+                SettingsTile(
+                    icon = Icons.Default.DataObject,
+                    iconColor = AppColors.primary,
+                    title = "API 日誌",
+                    subtitle = "檢視通訊封包與伺服器回應",
+                    onTap = { navigator.push(AppRoute.ApiLogs) },
+                    trailing = {
+                        AppSwitch(
+                            checked = apiLogging,
+                            onCheckedChange = { viewModel.setApiLogging(it) }
+                        )
+                    }
+                )
+            }
 
-                        is SessionState.Expired -> {
-                            SettingsTile(
-                                icon = Icons.Outlined.Key,
-                                title = "會話已過期",
-                                subtitle = "點擊以前往重新驗證",
-                                onClick = { navigator.push(AppRoute.Login) }
-                            )
-                        }
-
-                        is SessionState.Unauthenticated -> {
-                            SettingsTile(
-                                icon = Icons.Outlined.Key,
-                                title = "尚未授權",
-                                subtitle = "登入以取得 ss_me 金鑰",
-                                onClick = { navigator.push(AppRoute.Login) }
+            // 第三分組：終端環境
+            SettingsSection(title = "終端環境") {
+                SettingsTile(
+                    icon = Icons.Default.Fingerprint,
+                    iconColor = AppColors.primary,
+                    title = "Android UUID",
+                    subtitle = uiState.deviceUuid,
+                    trailing = {
+                        IconButton(onClick = {
+                            clipboardManager.setText(AnnotatedString(uiState.deviceUuid))
+                            NotificationController.showSuccess("已複製 UUID")
+                        }) {
+                            Icon(
+                                imageVector = Icons.Outlined.ContentCopy,
+                                contentDescription = "複製",
+                                tint = AppColors.secondary
                             )
                         }
                     }
-                }
-
-                // 2. 系統日誌
-                SettingsSection(title = "日誌稽核") {
-                    SettingsTile(
-                        icon = Icons.Outlined.DataObject,
-                        title = "API 請求紀錄",
-                        subtitle = "檢視登入與通訊之 Payload 紀錄",
-                        onClick = { navigator.push(AppRoute.ApiLogs) }
-                    )
-                    SettingsTile(
-                        icon = Icons.Outlined.ToggleOn,
-                        title = "API 紀錄開關",
-                        subtitle = "是否自動儲存通訊稽核封包",
-                        trailing = {
-                            AppSwitch(
-                                checked = apiLogging,
-                                onCheckedChange = { viewModel.setApiLogging(it) }
-                            )
-                        }
-                    )
-                    SettingsTile(
-                        icon = Icons.Outlined.Notifications,
-                        title = "系統通知紀錄",
-                        subtitle = "檢視歷史系統通知與警示",
-                        onClick = { navigator.push(AppRoute.NotificationLogs) }
-                    )
-                    SettingsTile(
-                        icon = Icons.Outlined.ToggleOn,
-                        title = "通知日誌開關",
-                        subtitle = "是否寫入系統通知日誌",
-                        trailing = {
-                            AppSwitch(
-                                checked = notificationLogging,
-                                onCheckedChange = { viewModel.setNotificationLogging(it) }
-                            )
-                        }
-                    )
-                }
-
-                // 3. 硬體指紋與環境
-                SettingsSection(title = "終端環境") {
-                    SettingsTile(
-                        icon = Icons.Outlined.Fingerprint,
-                        title = "Android UUID",
-                        subtitle = uiState.deviceUuid,
-                        trailing = {
-                            IconButton(onClick = {
-                                clipboardManager.setText(AnnotatedString(uiState.deviceUuid))
-                                NotificationController.showSuccess("已複製 UUID")
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ContentCopy,
-                                    contentDescription = "複製",
-                                    tint = textSecondary
-                                )
-                            }
-                        }
-                    )
-                    SettingsTile(
-                        icon = Icons.Outlined.PhoneAndroid,
-                        title = "裝置型號",
-                        subtitle = uiState.deviceModel
-                    )
-                    SettingsTile(
-                        icon = Icons.Outlined.Smartphone,
-                        title = "Android 版本",
-                        subtitle = "Android ${uiState.osVersion}"
-                    )
-                    SettingsTile(
-                        icon = Icons.Outlined.Info,
-                        title = "App 版本",
-                        subtitle = "v${uiState.appVersion}"
-                    )
-                }
-
-                // 4. 外觀設定
-                SettingsSection(title = "偏好外觀") {
-                    SettingsTile(
-                        icon = Icons.Outlined.DarkMode,
-                        title = "深色模式",
-                        subtitle = if (currentDarkMode) "已啟用" else "已關閉",
-                        trailing = {
-                            AppSwitch(
-                                checked = currentDarkMode,
-                                onCheckedChange = { viewModel.setDarkMode(it) }
-                            )
-                        }
-                    )
-                }
-
-                NavigationBarsSafeSpacer()
+                )
+                SettingsDivider()
+                SettingsTile(
+                    icon = Icons.Default.PhoneAndroid,
+                    iconColor = AppColors.primary,
+                    title = "裝置型號",
+                    subtitle = uiState.deviceModel
+                )
+                SettingsDivider()
+                SettingsTile(
+                    icon = Icons.Default.Smartphone,
+                    iconColor = AppColors.primary,
+                    title = "系統版本",
+                    subtitle = "Android ${uiState.osVersion}"
+                )
+                SettingsDivider()
+                SettingsTile(
+                    icon = Icons.Default.Info,
+                    iconColor = AppColors.primary,
+                    title = "應用程式版本",
+                    subtitle = "v${uiState.appVersion}"
+                )
             }
+
+            // 第四分組：外觀設定
+            SettingsSection(title = "系統外觀") {
+                SettingsTile(
+                    icon = Icons.Default.DarkMode,
+                    iconColor = AppColors.primary,
+                    title = "深色模式",
+                    subtitle = if (currentDarkMode) "已啟用" else "跟隨系統",
+                    trailing = {
+                        AppSwitch(
+                            checked = currentDarkMode,
+                            onCheckedChange = { viewModel.setDarkMode(it) }
+                        )
+                    }
+                )
+            }
+
+            NavigationBarsSafeSpacer()
         }
 
         // 滑動確認清除抽屜
         if (showClearSessionDrawer) {
             SwipeToConfirmDrawer(
                 title = "確認清除會話",
-                description = "此操作將抹除本機已儲存之 ss_me 金鑰及憑證，需重新驗證帳號登入。",
+                description = "此操作將抹除本機儲存之 ss_me 金鑰及憑證，需重新驗證帳號登入。",
                 confirmText = "滑動清除",
                 onConfirm = {
                     viewModel.clearSession()

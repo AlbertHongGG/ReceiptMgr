@@ -23,13 +23,20 @@ fun ImmersiveScaffold(
     val isDark = isSystemInDarkTheme()
     val bgColor = if (isDark) AppColors.backgroundDark else AppColors.backgroundLight
 
+    // 外層滿屏填色，100% 穿透狀態列與導航列，杜絕黑邊
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(bgColor)
-            .statusBarsPadding(),
-        content = content
-    )
+    ) {
+        // 內層視口安全內縮，保證內容安全避開狀態列
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            content = content
+        )
+    }
 }
 
 @Composable

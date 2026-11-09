@@ -77,7 +77,7 @@ fun PremiumEmptyState(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(AppColors.AccentTeal)
+                    .background(if (isDark) Color.White else AppColors.textPrimaryLight)
                     .clickable(onClick = onAction)
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
@@ -85,7 +85,7 @@ fun PremiumEmptyState(
                     text = actionText,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = if (isDark) Color.Black else Color.White
                 )
             }
         }

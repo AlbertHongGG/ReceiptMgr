@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.receiptmgr.app.domain.model.common.AppNotification
 import com.receiptmgr.app.domain.model.common.NotificationType
+import com.receiptmgr.app.presentation.theme.AppColors
 
 @Composable
 fun NotificationToast(
@@ -43,10 +44,10 @@ fun NotificationToast(
 ) {
     val isDark = isSystemInDarkTheme()
     val (typeColor, typeIcon) = when (notification.type) {
-        NotificationType.SUCCESS -> Pair(Color(0xFF10B981), Icons.Outlined.CheckCircleOutline)
-        NotificationType.ERROR -> Pair(Color(0xFFEF4444), Icons.Outlined.ErrorOutline)
-        NotificationType.INFO -> Pair(Color(0xFF3B82F6), Icons.Outlined.Info)
-        NotificationType.WARNING -> Pair(Color(0xFFF59E0B), Icons.Outlined.WarningAmber)
+        NotificationType.SUCCESS -> Pair(if (isDark) Color.White else AppColors.textPrimaryLight, Icons.Outlined.CheckCircleOutline)
+        NotificationType.ERROR -> Pair(AppColors.danger, Icons.Outlined.ErrorOutline)
+        NotificationType.INFO -> Pair(AppColors.primary, Icons.Outlined.Info)
+        NotificationType.WARNING -> Pair(AppColors.secondary, Icons.Outlined.WarningAmber)
     }
 
     val shape = RoundedCornerShape(16.dp)
@@ -62,7 +63,7 @@ fun NotificationToast(
                 spotColor = if (isDark) Color.Black.copy(alpha = 0.45f) else Color.Black.copy(alpha = 0.12f)
             )
             .clip(shape)
-            .background(if (isDark) Color(0xFF1E293B).copy(alpha = 0.94f) else Color.White.copy(alpha = 0.94f))
+            .background(if (isDark) AppColors.surfaceDark.copy(alpha = 0.96f) else Color.White.copy(alpha = 0.96f))
             .border(
                 width = 1.dp,
                 color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.06f),

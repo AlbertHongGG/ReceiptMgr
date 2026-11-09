@@ -21,16 +21,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Fingerprint
-import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material.icons.outlined.Tune
@@ -65,7 +61,6 @@ import com.receiptmgr.app.presentation.components.JsonTreeViewer
 import com.receiptmgr.app.presentation.components.NavigationBarsSafeSpacer
 import com.receiptmgr.app.presentation.components.PremiumConfigHeader
 import com.receiptmgr.app.presentation.components.SettingsSection
-import com.receiptmgr.app.presentation.navigation.contract.LocalCupertinoNavigator
 import com.receiptmgr.app.presentation.notification.NotificationController
 import com.receiptmgr.app.presentation.theme.AppColors
 
@@ -73,7 +68,6 @@ import com.receiptmgr.app.presentation.theme.AppColors
 fun LoginScreen(
     viewModel: LoginViewModel
 ) {
-    val navigator = LocalCupertinoNavigator.current
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val uiState by viewModel.uiState.collectAsState()
@@ -82,10 +76,9 @@ fun LoginScreen(
     var showPassword by remember { mutableStateOf(false) }
     var showAdvancedParams by remember { mutableStateOf(false) }
 
-    val bgCard = if (isDark) Color(0xFF161922) else Color.White
-    val borderColor = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
-    val textPrimary = if (isDark) Color(0xFFE2E8F0) else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val borderColor = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)
+    val textPrimary = if (isDark) AppColors.textPrimaryDark else AppColors.textPrimaryLight
+    val textSecondary = if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
 
     ImmersiveScaffold {
         Column(
@@ -93,23 +86,15 @@ fun LoginScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
+            // 頂部大標題（右滑手勢退棧，無上一頁按鈕）
             PremiumConfigHeader(
                 title = "帳號授權",
-                subtitle = "UIA 協定登入與憑證簽發",
-                navigationIcon = {
-                    IconButton(onClick = { navigator.pop() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
-                            tint = textPrimary
-                        )
-                    }
-                },
+                subtitle = "UIA PROTOCOL AUTHENTICATION",
                 actions = {
                     IconButton(onClick = { viewModel.resetDefaults(context) }) {
                         Icon(
                             imageVector = Icons.Outlined.RestartAlt,
-                            contentDescription = "重設",
+                            contentDescription = "重設參數",
                             tint = textSecondary
                         )
                     }
@@ -141,7 +126,7 @@ fun LoginScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Smartphone,
                                     contentDescription = null,
-                                    tint = AppColors.AccentTeal,
+                                    tint = AppColors.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
@@ -158,7 +143,7 @@ fun LoginScreen(
                                 }
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AppColors.AccentTeal,
+                                focusedBorderColor = AppColors.primary,
                                 unfocusedBorderColor = borderColor
                             ),
                             modifier = Modifier.fillMaxWidth()
@@ -175,7 +160,7 @@ fun LoginScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Lock,
                                     contentDescription = null,
-                                    tint = AppColors.AccentIndigo,
+                                    tint = AppColors.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
@@ -190,7 +175,7 @@ fun LoginScreen(
                                 }
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AppColors.AccentIndigo,
+                                focusedBorderColor = AppColors.primary,
                                 unfocusedBorderColor = borderColor
                             ),
                             modifier = Modifier.fillMaxWidth()
@@ -198,19 +183,9 @@ fun LoginScreen(
                     }
                 }
 
-                // 2. 終端硬體指紋參數卡片 (全部 9 個項目)
+                // 2. 終端硬體指紋參數卡片 (完整 9 項參數)
                 SettingsSection(
-                    title = "終端參數",
-                    action = {
-                        IconButton(onClick = { showAdvancedParams = !showAdvancedParams }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Tune,
-                                contentDescription = "展開參數",
-                                tint = if (showAdvancedParams) AppColors.AccentTeal else textSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
+                    title = "終端參數"
                 ) {
                     Column(
                         modifier = Modifier
@@ -228,7 +203,7 @@ fun LoginScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Fingerprint,
                                     contentDescription = null,
-                                    tint = AppColors.AccentAmber,
+                                    tint = AppColors.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
@@ -246,11 +221,34 @@ fun LoginScreen(
                                 }
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AppColors.AccentAmber,
+                                focusedBorderColor = AppColors.primary,
                                 unfocusedBorderColor = borderColor
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        // 展開/收合其他參數切換列
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showAdvancedParams = !showAdvancedParams }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Tune,
+                                contentDescription = null,
+                                tint = AppColors.secondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (showAdvancedParams) "收合進階終端參數" else "展開其他 6 項封包參數",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = AppColors.secondary
+                            )
+                        }
 
                         AnimatedVisibility(visible = showAdvancedParams) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -260,7 +258,7 @@ fun LoginScreen(
                                     label = { Text("客戶端代碼 (app_id)", fontSize = 12.sp) },
                                     singleLine = true,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = AppColors.AccentTeal,
+                                        focusedBorderColor = AppColors.primary,
                                         unfocusedBorderColor = borderColor
                                     ),
                                     modifier = Modifier.fillMaxWidth()
@@ -277,7 +275,7 @@ fun LoginScreen(
                                         singleLine = true,
                                         modifier = Modifier.weight(1f),
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = AppColors.AccentTeal,
+                                            focusedBorderColor = AppColors.primary,
                                             unfocusedBorderColor = borderColor
                                         )
                                     )
@@ -285,11 +283,11 @@ fun LoginScreen(
                                     OutlinedTextField(
                                         value = uiState.osVersion,
                                         onValueChange = { viewModel.onOsVersionChange(it) },
-                                        label = { Text("系統版號", fontSize = 12.sp) },
+                                        label = { Text("系統版本", fontSize = 12.sp) },
                                         singleLine = true,
                                         modifier = Modifier.weight(1f),
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = AppColors.AccentTeal,
+                                            focusedBorderColor = AppColors.primary,
                                             unfocusedBorderColor = borderColor
                                         )
                                     )
@@ -306,7 +304,7 @@ fun LoginScreen(
                                         singleLine = true,
                                         modifier = Modifier.weight(1f),
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = AppColors.AccentTeal,
+                                            focusedBorderColor = AppColors.primary,
                                             unfocusedBorderColor = borderColor
                                         )
                                     )
@@ -314,11 +312,11 @@ fun LoginScreen(
                                     OutlinedTextField(
                                         value = uiState.loginMod,
                                         onValueChange = { viewModel.onLoginModChange(it) },
-                                        label = { Text("模式 (login_mod)", fontSize = 12.sp) },
+                                        label = { Text("登入模式 (login_mod)", fontSize = 12.sp) },
                                         singleLine = true,
                                         modifier = Modifier.weight(1f),
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = AppColors.AccentTeal,
+                                            focusedBorderColor = AppColors.primary,
                                             unfocusedBorderColor = borderColor
                                         )
                                     )
@@ -328,13 +326,13 @@ fun LoginScreen(
                     }
                 }
 
-                // 3. 登入操作按鈕 (極簡 Icon + Focus)
+                // 3. 登入操作按鈕 (深石板冷灰 / 高對比純色，零綠色)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(AppColors.AccentTeal)
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (isDark) Color.White else AppColors.textPrimaryLight)
                         .clickable(enabled = !uiState.isLoading) {
                             viewModel.executeLogin()
                         },
@@ -342,9 +340,9 @@ fun LoginScreen(
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.Black,
-                            strokeWidth = 2.5.dp
+                            modifier = Modifier.size(22.dp),
+                            color = if (isDark) Color.Black else Color.White,
+                            strokeWidth = 2.dp
                         )
                     } else {
                         Row(
@@ -354,13 +352,13 @@ fun LoginScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.Login,
                                 contentDescription = "登入",
-                                tint = Color.Black,
-                                modifier = Modifier.size(20.dp)
+                                tint = if (isDark) Color.Black else Color.White,
+                                modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "驗證登入",
-                                color = Color.Black,
+                                color = if (isDark) Color.Black else Color.White,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -372,32 +370,14 @@ fun LoginScreen(
                 if (uiState.responseSession != null) {
                     val session = uiState.responseSession!!
                     SettingsSection(
-                        title = "會話憑證 (Response Payload)",
-                        action = {
-                            IconButton(onClick = {
-                                val toCopy = when (uiState.responseTab) {
-                                    0 -> "ss_me: ${session.ssMe}\ntoken: ${session.token}\nsid: ${session.sid}\nliat: ${session.liat}"
-                                    1 -> session.rawPayloadJson
-                                    else -> session.rawServerResponseJson
-                                }
-                                clipboardManager.setText(AnnotatedString(toCopy))
-                                NotificationController.showSuccess("已複製到剪貼簿")
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ContentCopy,
-                                    contentDescription = "複製",
-                                    tint = AppColors.AccentTeal,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
+                        title = "伺服器會話 (Response Payload)"
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(12.dp)
                         ) {
-                            // 分頁選擇器
+                            // 分頁選擇器 (冷灰風格)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -411,12 +391,15 @@ fun LoginScreen(
                                             .weight(1f)
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(
-                                                if (isSelected) AppColors.AccentTeal.copy(alpha = 0.16f)
-                                                else Color.Transparent
+                                                if (isSelected) {
+                                                    if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.08f)
+                                                } else Color.Transparent
                                             )
                                             .border(
                                                 width = 1.dp,
-                                                color = if (isSelected) AppColors.AccentTeal else borderColor,
+                                                color = if (isSelected) {
+                                                    if (isDark) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.2f)
+                                                } else borderColor,
                                                 shape = RoundedCornerShape(8.dp)
                                             )
                                             .clickable { viewModel.onSelectResponseTab(idx) }
@@ -427,7 +410,7 @@ fun LoginScreen(
                                             text = tabTitle,
                                             fontSize = 12.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) AppColors.AccentTeal else textSecondary
+                                            color = if (isSelected) textPrimary else textSecondary
                                         )
                                     }
                                 }
@@ -435,10 +418,9 @@ fun LoginScreen(
 
                             when (uiState.responseTab) {
                                 0 -> {
-                                    // 關鍵權杖條目
                                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         CredentialItem(
-                                            label = "ss_me (發票查詢簽名金鑰)",
+                                            label = "ss_me (發票查詢簽章金鑰)",
                                             value = session.ssMe,
                                             highlight = true,
                                             onCopy = {
@@ -517,7 +499,7 @@ private fun CredentialItem(
     val isDark = isSystemInDarkTheme()
     val shape = RoundedCornerShape(8.dp)
     val cardBg = if (highlight) {
-        if (isDark) AppColors.AccentTeal.copy(alpha = 0.12f) else AppColors.AccentTeal.copy(alpha = 0.08f)
+        if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.04f)
     } else {
         if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f)
     }
@@ -529,7 +511,9 @@ private fun CredentialItem(
             .background(cardBg)
             .border(
                 width = 1.dp,
-                color = if (highlight) AppColors.AccentTeal.copy(alpha = 0.35f) else Color.Transparent,
+                color = if (highlight) {
+                    if (isDark) Color.White.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.15f)
+                } else Color.Transparent,
                 shape = shape
             )
             .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -543,7 +527,9 @@ private fun CredentialItem(
                     text = label,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (highlight) AppColors.AccentTeal else if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                    color = if (highlight) {
+                        if (isDark) Color.White else AppColors.textPrimaryLight
+                    } else AppColors.secondary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -564,7 +550,7 @@ private fun CredentialItem(
                         imageVector = Icons.Outlined.ContentCopy,
                         contentDescription = "複製",
                         modifier = Modifier.size(14.dp),
-                        tint = if (highlight) AppColors.AccentTeal else Color.Gray
+                        tint = AppColors.secondary
                     )
                 }
             }
