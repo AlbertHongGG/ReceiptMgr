@@ -136,7 +136,8 @@ class MainActivity : ComponentActivity() {
                                                 InvoiceDetailViewModel(
                                                     invNum = route.invNum,
                                                     invDate = route.invDate,
-                                                    invoiceRepository = appContainer.invoiceRepository
+                                                    invoiceRepository = appContainer.invoiceRepository,
+                                                    invoiceExportService = appContainer.invoiceExportService
                                                 )
                                             }
                                             InvoiceDetailScreen(viewModel = invoiceDetailViewModel)

@@ -5,6 +5,13 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="equitytracker" />
+        </intent>
+    </queries>
+
     <application
         android:name=".ReceiptMgrApplication"
         android:allowBackup="true"

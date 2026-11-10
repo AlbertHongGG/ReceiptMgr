@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.receiptmgr.app.domain.model.invoice.InvoiceDetail
 import com.receiptmgr.app.domain.repository.InvoiceRepository
+import com.receiptmgr.app.domain.service.InvoiceExportService
+import com.receiptmgr.app.presentation.notification.NotificationController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +21,8 @@ data class InvoiceDetailUiState(
 class InvoiceDetailViewModel(
     private val invNum: String,
     private val invDate: String,
-    private val invoiceRepository: InvoiceRepository
+    private val invoiceRepository: InvoiceRepository,
+    private val invoiceExportService: InvoiceExportService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InvoiceDetailUiState(isLoading = true))
@@ -51,6 +54,17 @@ class InvoiceDetailViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    /**
+     * 匯出發票資料至 EquityTracker 進行自動記帳。
+     */
+    fun exportToEquityTracker() {
+        val detail = _uiState.value.detail ?: return
+        val success = invoiceExportService.exportToEquityTracker(detail)
+        if (!success) {
+            NotificationController.showError("尚未安裝 EquityTracker 記帳軟體")
         }
     }
 }

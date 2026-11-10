@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -109,6 +110,9 @@ fun InvoiceDetailScreen(
                                 onCopyInvoiceNumber = {
                                     clipboardManager.setText(AnnotatedString(detail.invNum))
                                     NotificationController.showSuccess("已複製發票號碼")
+                                },
+                                onExportToEquityTracker = {
+                                    viewModel.exportToEquityTracker()
                                 }
                             )
 
@@ -134,6 +138,7 @@ fun InvoiceDetailScreen(
 private fun DigitalReceiptCard(
     detail: InvoiceDetail,
     onCopyInvoiceNumber: () -> Unit,
+    onExportToEquityTracker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
@@ -185,7 +190,7 @@ private fun DigitalReceiptCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 發票號碼字串先幾何置中，複製圖示錨定於右側 (不擠壓置中性)
+                // 發票號碼字串先幾何置中，操作圖示錨定於右側 (不擠壓置中性)
                 ExactCenteredWithTrailingLayout(
                     centerContent = {
                         Text(
@@ -197,16 +202,31 @@ private fun DigitalReceiptCard(
                         )
                     },
                     trailingContent = {
-                        IconButton(
-                            onClick = onCopyInvoiceNumber,
-                            modifier = Modifier.size(32.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ContentCopy,
-                                contentDescription = "複製發票號碼",
-                                modifier = Modifier.size(17.dp),
-                                tint = textSecondary
-                            )
+                            IconButton(
+                                onClick = onCopyInvoiceNumber,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ContentCopy,
+                                    contentDescription = "複製發票號碼",
+                                    modifier = Modifier.size(17.dp),
+                                    tint = textSecondary
+                                )
+                            }
+                            IconButton(
+                                onClick = onExportToEquityTracker,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Share,
+                                    contentDescription = "分享至 EquityTracker 記帳",
+                                    modifier = Modifier.size(17.dp),
+                                    tint = textSecondary
+                                )
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()

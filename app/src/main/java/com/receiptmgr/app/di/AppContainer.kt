@@ -5,6 +5,7 @@ import com.receiptmgr.app.data.crypto.UiaGcmCipher
 import com.receiptmgr.app.data.crypto.UiaPacketCodec
 import com.receiptmgr.app.data.crypto.UpiJwtPacketCodec
 import com.receiptmgr.app.data.device.DeviceEnvironmentProvider
+import com.receiptmgr.app.data.export.AndroidInvoiceExportService
 import com.receiptmgr.app.data.network.UiaAuthApiClient
 import com.receiptmgr.app.data.network.UpiInvoiceApiClient
 import com.receiptmgr.app.data.repository.AuthRepositoryImpl
@@ -22,6 +23,7 @@ import com.receiptmgr.app.data.sync.InvoiceDetailSyncEngineImpl
 import com.receiptmgr.app.domain.repository.AuthRepository
 import com.receiptmgr.app.domain.repository.InvoiceRepository
 import com.receiptmgr.app.domain.repository.SettingsRepository
+import com.receiptmgr.app.domain.service.InvoiceExportService
 import com.receiptmgr.app.presentation.notification.NotificationController
 
 interface AppContainer {
@@ -41,6 +43,7 @@ interface AppContainer {
     val upiJwtPacketCodec: UpiJwtPacketCodec
     val upiInvoiceApiClient: UpiInvoiceApiClient
     val invoiceRepository: InvoiceRepository
+    val invoiceExportService: InvoiceExportService
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -124,5 +127,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             localDataSource = invoiceLocalDataSource,
             syncEngine = invoiceDetailSyncEngine
         )
+    }
+
+    override val invoiceExportService: InvoiceExportService by lazy {
+        AndroidInvoiceExportService(context)
     }
 }
