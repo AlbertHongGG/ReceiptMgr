@@ -109,7 +109,16 @@ fun InvoiceListScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
             )
 
-            // 區域 3 & 4: 語意過渡分區標籤與精緻化帳務清單
+            // 區域 3: 固定分區抬頭 (恆定固定，永不隨清單滾動捲走，載入時亦恆定存在)
+            InvoiceListSectionHeader(
+                isLoading = uiState.isCurrentLoading,
+                invoiceCount = uiState.currentSummary?.invoiceCount,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
+            )
+
+            // 區域 4: 語意過渡分區標籤與精緻化帳務清單
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -159,31 +168,7 @@ fun InvoiceListScreen(
                             state = listState,
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            // 區域 3: 分區抬頭
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "消費紀錄",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = textSecondary
-                                    )
-
-                                    Text(
-                                        text = "共 ${invoices.size} 筆",
-                                        fontSize = 12.sp,
-                                        color = textSecondary
-                                    )
-                                }
-                            }
-
-                            // 區域 4: 發票卡片清單 (無品項圖示、商家抬頭完整多行換行、號碼與日期單行平鋪)
+                            // 發票卡片清單 (無品項圖示、商家抬頭完整多行換行、號碼與日期單行平鋪)
                             items(
                                 items = invoices,
                                 key = { it.invNum }
@@ -363,6 +348,65 @@ private fun ExpenseHeroDashboard(
 }
 
 /**
+ * 發票清單固定分區抬頭 (InvoiceListSectionHeader)
+ * 規格保證：
+ * 1. 恆定固定於看板下方，絕不隨列表滾動捲走。
+ * 2. 載入中 (isLoading) 恆定展示「消費紀錄」，右側筆數展示微骨架脈衝塊。
+ * 3. 載入完成平滑展示「共 X 筆」。
+ */
+@Composable
+private fun InvoiceListSectionHeader(
+    isLoading: Boolean,
+    invoiceCount: Int?,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val textSecondary = if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
+    val placeholderColor = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
+
+    val transition = rememberInfiniteTransition(label = "headerSkeletonPulse")
+    val alpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "headerSkeletonAlpha"
+    )
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "消費紀錄",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = textSecondary
+        )
+
+        if (isLoading && invoiceCount == null) {
+            Box(
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(13.dp)
+                    .alpha(alpha)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(placeholderColor)
+            )
+        } else if (invoiceCount != null) {
+            Text(
+                text = "共 $invoiceCount 筆",
+                fontSize = 12.sp,
+                color = textSecondary
+            )
+        }
+    }
+}
+
+/**
  * 精緻化發票卡片 (InvoiceListItemCard)
  * 規格保證：
  * 1. 無品項圖示，釋放完整橫向空間。
@@ -488,8 +532,8 @@ private fun InvoiceListSkeleton() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         repeat(5) {
             Box(
