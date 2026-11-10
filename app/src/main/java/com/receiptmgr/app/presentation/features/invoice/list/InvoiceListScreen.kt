@@ -423,15 +423,28 @@ private fun InvoiceListSectionHeader(
  * 4. 僅顯示開立日期 (invoice.invDate)，不顯示秒數時間。
  */
 /**
- * 發票已傳送至記帳 App 狀態標籤 (ExportStatusTag)。
+ * 發票記帳傳送狀態標籤 (ExportStatusTag)。
+ * 規格保證：
+ * 1. 恆定佔據卡片右上角錨點，確保清單每張卡片右上角與右下角金額欄對齊線恆等，消除視覺斷層。
+ * 2. 已傳送：主題翡翠綠底色搭配綠色微圓點與「已傳送」字樣。
+ * 3. 未傳送：低對比柔和中性灰底色搭配冷灰微圓點與「未傳送」字樣，維持層次且不喧賓奪主。
  */
 @Composable
 private fun ExportStatusTag(
+    isExported: Boolean,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val bgColor = if (isDark) Color(0x2610B981) else Color(0x1A10B981)
-    val contentColor = AppColors.success
+    val bgColor = if (isExported) {
+        if (isDark) Color(0x2610B981) else Color(0x1A10B981)
+    } else {
+        if (isDark) Color(0x14FFFFFF) else Color(0x0A000000)
+    }
+    val contentColor = if (isExported) {
+        AppColors.success
+    } else {
+        if (isDark) AppColors.textSecondaryDark else AppColors.textSecondaryLight
+    }
 
     Row(
         modifier = modifier
@@ -448,7 +461,7 @@ private fun ExportStatusTag(
                 .background(contentColor)
         )
         Text(
-            text = "已傳送",
+            text = if (isExported) "已傳送" else "未傳送",
             fontSize = 10.sp,
             fontWeight = FontWeight.Medium,
             color = contentColor
@@ -459,7 +472,7 @@ private fun ExportStatusTag(
 /**
  * 精緻化發票卡片 (InvoiceListItemCard)。
  * 規格保證：
- * 1. 頂部中繼列：發票號碼與日期置頂，分享按鈕緊接於字串結尾（固定 24dp 絕不壓縮），右上角對齊「已傳送」狀態標籤。
+ * 1. 頂部中繼列：發票號碼與日期置頂，分享按鈕緊接於字串結尾（固定 24dp 絕不壓縮），右上角對齊「已傳送/未傳送」狀態標籤。
  * 2. 主內容列：商家抬頭完整顯示，支援自然折行；右側金額與箭頭獨立排版，徹底解決橫向寬度擠壓裁切問題。
  * 3. 獨立事件處理：點擊分享按鈕只觸發外部記帳，絕不觸發卡片點擊跳轉。
  */
@@ -492,7 +505,7 @@ private fun InvoiceListItemCard(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // 上層：中繼元資訊列 (號碼 · 日期 [分享按鈕] ── 右側 [已傳送 Tag])
+            // 上層：中繼元資訊列 (號碼 · 日期 [分享按鈕] ── 右側 [已傳送 / 未傳送 Tag])
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -536,17 +549,15 @@ private fun InvoiceListItemCard(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Share,
-                            contentDescription = "傳送至 EquityTracker",
+                            contentDescription = if (isExported) "已傳送至 EquityTracker (點擊可重新傳送)" else "傳送至 EquityTracker",
                             modifier = Modifier.size(13.dp),
                             tint = if (isExported) AppColors.success else textSecondary
                         )
                     }
                 }
 
-                // 右上角狀態 Tag (未傳送時留白，已傳送時顯示綠色精緻微標籤)
-                if (isExported) {
-                    ExportStatusTag()
-                }
+                // 右上角狀態 Tag (恆定渲染：已傳送 / 未傳送，確保右側上下結構一致)
+                ExportStatusTag(isExported = isExported)
             }
 
             Spacer(modifier = Modifier.height(6.dp))
