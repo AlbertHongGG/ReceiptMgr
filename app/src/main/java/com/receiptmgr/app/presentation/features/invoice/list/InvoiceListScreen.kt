@@ -23,11 +23,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -42,6 +44,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -182,6 +185,9 @@ fun InvoiceListScreen(
                                                 invDate = invoice.invDate
                                             )
                                         )
+                                    },
+                                    onExport = {
+                                        viewModel.exportInvoice(invoice)
                                     },
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                                 )
@@ -418,6 +424,7 @@ private fun InvoiceListSectionHeader(
 private fun InvoiceListItemCard(
     invoice: InvoiceHeader,
     onClick: () -> Unit,
+    onExport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
@@ -456,7 +463,7 @@ private fun InvoiceListItemCard(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // 發票號碼與日期：單行平鋪
+                // 發票號碼、日期與快速記帳分享按鈕：單行平鋪
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -480,6 +487,27 @@ private fun InvoiceListItemCard(
                         fontSize = 12.sp,
                         color = textSecondary
                     )
+
+                    Spacer(modifier = Modifier.width(2.dp))
+
+                    // 記帳至 EquityTracker 快捷分享按鈕 (獨立點擊，不觸發進明細)
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                role = Role.Button,
+                                onClick = onExport
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Share,
+                            contentDescription = "記帳至 EquityTracker",
+                            modifier = Modifier.size(13.dp),
+                            tint = textSecondary
+                        )
+                    }
                 }
             }
 

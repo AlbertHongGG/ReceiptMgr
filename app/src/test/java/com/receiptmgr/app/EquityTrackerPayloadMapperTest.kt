@@ -136,4 +136,36 @@ class EquityTrackerPayloadMapperTest {
         assertEquals("全聯福利中心", parsedDto.merchant)
         assertEquals(95.0, parsedDto.items[0].amount, 0.001)
     }
+
+    @Test
+    fun testHeaderToDtoMapping() {
+        val header = com.receiptmgr.app.domain.model.invoice.InvoiceHeader(
+            invNum = "EU29788453",
+            invPeriod = "11510",
+            sellerName = "全聯實業股份有限公司新興七賢二分公司",
+            amount = 177,
+            invDate = "2026-09-23",
+            invoiceTime = "15:20:11"
+        )
+        val synthesizedDetail = InvoiceDetail(
+            invNum = header.invNum,
+            invPeriod = header.invPeriod,
+            sellerName = header.sellerName,
+            sellerBan = header.sellerBan,
+            sellerAddress = header.sellerAddress,
+            amount = header.amount,
+            invDate = header.invDate,
+            invoiceTime = header.invoiceTime,
+            cardNo = header.cardNo,
+            items = emptyList()
+        )
+        val dto = EquityTrackerPayloadMapper.toDto(synthesizedDetail)
+
+        assertEquals("全聯實業股份有限公司新興七賢二分公司", dto.merchant)
+        assertEquals("2026-09-23T15:20:11", dto.date)
+        assertEquals(1, dto.items.size)
+        assertEquals("全聯實業股份有限公司新興七賢二分公司", dto.items[0].name)
+        assertEquals(177.0, dto.items[0].amount, 0.001)
+        assertEquals(1, dto.items[0].quantity)
+    }
 }

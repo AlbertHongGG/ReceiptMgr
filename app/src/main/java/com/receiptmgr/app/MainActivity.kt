@@ -101,7 +101,10 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 val invoiceListViewModel = remember {
-                                    InvoiceListViewModel(appContainer.invoiceRepository)
+                                    InvoiceListViewModel(
+                                        invoiceRepository = appContainer.invoiceRepository,
+                                        invoiceExportService = appContainer.invoiceExportService
+                                    )
                                 }
 
                                 CupertinoSwipeBackContainer(

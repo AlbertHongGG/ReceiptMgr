@@ -130,6 +130,6 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val invoiceExportService: InvoiceExportService by lazy {
-        AndroidInvoiceExportService(context)
+        AndroidInvoiceExportService(context, invoiceLocalDataSource)
     }
 }

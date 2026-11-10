@@ -3,8 +3,11 @@ package com.receiptmgr.app.presentation.features.invoice.list
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.receiptmgr.app.domain.model.invoice.BillingPeriod
+import com.receiptmgr.app.domain.model.invoice.InvoiceHeader
 import com.receiptmgr.app.domain.model.invoice.PeriodInvoiceSummary
 import com.receiptmgr.app.domain.repository.InvoiceRepository
+import com.receiptmgr.app.domain.service.InvoiceExportService
+import com.receiptmgr.app.presentation.notification.NotificationController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,9 +60,11 @@ data class InvoiceListUiState(
  * 1. 管理雙月期別狀態機，每次切換一律重新呼叫 API 取得最新資料。
  * 2. 嚴格期別槽位隔離，杜絕跨期別資料幽靈殘留。
  * 3. 封裝未來月份阻斷與歷史 5 期超期自動偵測。
+ * 4. 支援發票表頭直接外部匯出記帳 (優先本地細項快取與保底機制)。
  */
 class InvoiceListViewModel(
-    private val invoiceRepository: InvoiceRepository
+    private val invoiceRepository: InvoiceRepository,
+    private val invoiceExportService: InvoiceExportService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InvoiceListUiState())
@@ -151,5 +156,17 @@ class InvoiceListViewModel(
      */
     fun getScrollPosition(period: BillingPeriod): ListScrollPosition {
         return _uiState.value.scrollPositions[period] ?: ListScrollPosition(0, 0)
+    }
+
+    /**
+     * 將指定發票表頭直接匯出至 EquityTracker 自動記帳。
+     */
+    fun exportInvoice(invoice: InvoiceHeader) {
+        viewModelScope.launch {
+            val success = invoiceExportService.exportToEquityTracker(invoice)
+            if (!success) {
+                NotificationController.showError("尚未安裝 EquityTracker 記帳軟體")
+            }
+        }
     }
 }

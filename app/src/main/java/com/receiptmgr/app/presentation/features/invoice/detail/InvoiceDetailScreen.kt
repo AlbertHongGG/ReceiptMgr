@@ -165,6 +165,21 @@ private fun DigitalReceiptCard(
             )
             .padding(20.dp)
     ) {
+        // 右上角獨立分享 / 記帳按鈕
+        IconButton(
+            onClick = onExportToEquityTracker,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(36.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Share,
+                contentDescription = "分享至 EquityTracker 記帳",
+                modifier = Modifier.size(19.dp),
+                tint = textSecondary
+            )
+        }
+
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -190,7 +205,7 @@ private fun DigitalReceiptCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 發票號碼字串先幾何置中，操作圖示錨定於右側 (不擠壓置中性)
+                // 發票號碼字串先幾何置中，複製圖示錨定於右側 (不擠壓置中性)
                 ExactCenteredWithTrailingLayout(
                     centerContent = {
                         Text(
@@ -202,31 +217,16 @@ private fun DigitalReceiptCard(
                         )
                     },
                     trailingContent = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
+                        IconButton(
+                            onClick = onCopyInvoiceNumber,
+                            modifier = Modifier.size(32.dp)
                         ) {
-                            IconButton(
-                                onClick = onCopyInvoiceNumber,
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ContentCopy,
-                                    contentDescription = "複製發票號碼",
-                                    modifier = Modifier.size(17.dp),
-                                    tint = textSecondary
-                                )
-                            }
-                            IconButton(
-                                onClick = onExportToEquityTracker,
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Share,
-                                    contentDescription = "分享至 EquityTracker 記帳",
-                                    modifier = Modifier.size(17.dp),
-                                    tint = textSecondary
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Outlined.ContentCopy,
+                                contentDescription = "複製發票號碼",
+                                modifier = Modifier.size(17.dp),
+                                tint = textSecondary
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
