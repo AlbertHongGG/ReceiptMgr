@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class EncryptedSessionDataSource(private val context: Context) {
+class EncryptedSessionDataSource(private val context: Context) : SessionDataSource {
 
     companion object {
         private const val TAG = "EncryptedSessionData"
@@ -43,7 +43,7 @@ class EncryptedSessionDataSource(private val context: Context) {
         }
     }
 
-    suspend fun saveSession(session: SessionCredentials) = withContext(Dispatchers.IO) {
+    override suspend fun saveSession(session: SessionCredentials): Unit = withContext(Dispatchers.IO) {
         try {
             val serialized = json.encodeToString(session)
             securePrefs.edit().putString(KEY_SESSION_DATA, serialized).commit()
@@ -52,7 +52,7 @@ class EncryptedSessionDataSource(private val context: Context) {
         }
     }
 
-    suspend fun getSession(): SessionCredentials? = withContext(Dispatchers.IO) {
+    override suspend fun getSession(): SessionCredentials? = withContext(Dispatchers.IO) {
         try {
             val serialized = securePrefs.getString(KEY_SESSION_DATA, null) ?: return@withContext null
             json.decodeFromString<SessionCredentials>(serialized)
@@ -62,7 +62,7 @@ class EncryptedSessionDataSource(private val context: Context) {
         }
     }
 
-    suspend fun clearSession() = withContext(Dispatchers.IO) {
+    override suspend fun clearSession(): Unit = withContext(Dispatchers.IO) {
         try {
             securePrefs.edit().remove(KEY_SESSION_DATA).commit()
         } catch (e: Exception) {

@@ -31,7 +31,7 @@ import java.util.zip.GZIPInputStream
  * 3. 雙重 GZIP 魔數解碼保護，杜絕亂碼。
  * 4. 單點全鏈路審計持久化，發送前後自動寫入 ApiLogManager (發票清單 / 發票明細)。
  */
-class UpiInvoiceApiClient(
+open class UpiInvoiceApiClient(
     private val apiLogManager: ApiLogManager,
     private val packetCodec: UpiJwtPacketCodec = UpiJwtPacketCodec(),
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
@@ -52,7 +52,7 @@ class UpiInvoiceApiClient(
     /**
      * 端口 1: 查詢載具發票表頭清單
      */
-    suspend fun queryHeaders(
+    open suspend fun queryHeaders(
         reqData: UpiInvoiceHeaderReqDto,
         session: SessionCredentials
     ): Result<List<InvoiceHeader>> = withContext(Dispatchers.IO) {
@@ -91,7 +91,7 @@ class UpiInvoiceApiClient(
     /**
      * 端口 2: 查詢單筆發票品項明細
      */
-    suspend fun queryDetails(
+    open suspend fun queryDetails(
         reqData: UpiInvoiceDetailReqDto,
         session: SessionCredentials
     ): Result<InvoiceDetail> = withContext(Dispatchers.IO) {

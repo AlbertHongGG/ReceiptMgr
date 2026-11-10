@@ -12,8 +12,13 @@ import com.receiptmgr.app.data.repository.InvoiceRepositoryImpl
 import com.receiptmgr.app.data.repository.SettingsRepositoryImpl
 import com.receiptmgr.app.data.storage.ApiLogManager
 import com.receiptmgr.app.data.storage.EncryptedSessionDataSource
+import com.receiptmgr.app.data.storage.InvoiceLocalDataSource
+import com.receiptmgr.app.data.storage.InvoiceLocalDataSourceImpl
 import com.receiptmgr.app.data.storage.NotificationLogManager
 import com.receiptmgr.app.data.storage.SettingsDataStore
+import com.receiptmgr.app.data.storage.db.InvoiceDatabaseHelper
+import com.receiptmgr.app.data.sync.InvoiceDetailSyncEngine
+import com.receiptmgr.app.data.sync.InvoiceDetailSyncEngineImpl
 import com.receiptmgr.app.domain.repository.AuthRepository
 import com.receiptmgr.app.domain.repository.InvoiceRepository
 import com.receiptmgr.app.domain.repository.SettingsRepository
@@ -25,6 +30,9 @@ interface AppContainer {
     val notificationController: NotificationController
     val settingsDataStore: SettingsDataStore
     val encryptedSessionDataSource: EncryptedSessionDataSource
+    val invoiceDatabaseHelper: InvoiceDatabaseHelper
+    val invoiceLocalDataSource: InvoiceLocalDataSource
+    val invoiceDetailSyncEngine: InvoiceDetailSyncEngine
     val deviceEnvironmentProvider: DeviceEnvironmentProvider
     val uiaPacketCodec: UiaPacketCodec
     val uiaAuthApiClient: UiaAuthApiClient
@@ -57,6 +65,22 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val encryptedSessionDataSource: EncryptedSessionDataSource by lazy {
         EncryptedSessionDataSource(context)
+    }
+
+    override val invoiceDatabaseHelper: InvoiceDatabaseHelper by lazy {
+        InvoiceDatabaseHelper(context)
+    }
+
+    override val invoiceLocalDataSource: InvoiceLocalDataSource by lazy {
+        InvoiceLocalDataSourceImpl(invoiceDatabaseHelper)
+    }
+
+    override val invoiceDetailSyncEngine: InvoiceDetailSyncEngine by lazy {
+        InvoiceDetailSyncEngineImpl(
+            upiApiClient = upiInvoiceApiClient,
+            sessionDataSource = encryptedSessionDataSource,
+            localDataSource = invoiceLocalDataSource
+        )
     }
 
     override val deviceEnvironmentProvider: DeviceEnvironmentProvider by lazy {
@@ -96,7 +120,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val invoiceRepository: InvoiceRepository by lazy {
         InvoiceRepositoryImpl(
             upiApiClient = upiInvoiceApiClient,
-            sessionDataSource = encryptedSessionDataSource
+            sessionDataSource = encryptedSessionDataSource,
+            localDataSource = invoiceLocalDataSource,
+            syncEngine = invoiceDetailSyncEngine
         )
     }
 }

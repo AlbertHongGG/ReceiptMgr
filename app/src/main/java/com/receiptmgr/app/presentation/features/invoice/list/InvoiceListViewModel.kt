@@ -28,8 +28,7 @@ data class InvoiceListUiState(
     val periodErrors: Map<BillingPeriod, String> = emptyMap(),
     val loadingPeriods: Set<BillingPeriod> = emptySet(),
     val isOutdatedPeriods: Set<BillingPeriod> = emptySet(),
-    val scrollPositions: Map<BillingPeriod, ListScrollPosition> = emptyMap(),
-    val isRefreshing: Boolean = false
+    val scrollPositions: Map<BillingPeriod, ListScrollPosition> = emptyMap()
 ) {
     /** 當前畫面唯一合法的發票摘要，嚴格綁定 currentPeriod */
     val currentSummary: PeriodInvoiceSummary? get() = periodSummaries[currentPeriod]
@@ -67,19 +66,18 @@ class InvoiceListViewModel(
     val uiState: StateFlow<InvoiceListUiState> = _uiState.asStateFlow()
 
     init {
-        loadInvoices(period = _uiState.value.currentPeriod, isManualRefresh = false)
+        loadInvoices(period = _uiState.value.currentPeriod)
     }
 
     /**
      * 載入指定期別發票。
      * 每次切換期別均穿透發送 Fresh API 請求 (forceRefresh = true)。
      */
-    fun loadInvoices(period: BillingPeriod, isManualRefresh: Boolean = false) {
+    fun loadInvoices(period: BillingPeriod) {
         viewModelScope.launch {
             _uiState.update { state ->
                 state.copy(
                     currentPeriod = period,
-                    isRefreshing = isManualRefresh,
                     loadingPeriods = state.loadingPeriods + period,
                     periodErrors = state.periodErrors - period
                 )
@@ -96,7 +94,6 @@ class InvoiceListViewModel(
                 _uiState.update { state ->
                     state.copy(
                         loadingPeriods = state.loadingPeriods - period,
-                        isRefreshing = false,
                         periodSummaries = state.periodSummaries + (period to emptySummary),
                         isOutdatedPeriods = state.isOutdatedPeriods + period
                     )
@@ -110,7 +107,6 @@ class InvoiceListViewModel(
                     _uiState.update { state ->
                         state.copy(
                             loadingPeriods = state.loadingPeriods - period,
-                            isRefreshing = false,
                             periodSummaries = state.periodSummaries + (period to summary),
                             isOutdatedPeriods = state.isOutdatedPeriods - period
                         )
@@ -120,7 +116,6 @@ class InvoiceListViewModel(
                     _uiState.update { state ->
                         state.copy(
                             loadingPeriods = state.loadingPeriods - period,
-                            isRefreshing = false,
                             periodErrors = state.periodErrors + (period to (error.message ?: "載入發票失敗")),
                             // 失敗時確保清除該期別資料，避免殘留
                             periodSummaries = state.periodSummaries - period
@@ -131,17 +126,13 @@ class InvoiceListViewModel(
     }
 
     fun selectPreviousPeriod() {
-        loadInvoices(period = _uiState.value.currentPeriod.previous(), isManualRefresh = false)
+        loadInvoices(period = _uiState.value.currentPeriod.previous())
     }
 
     fun selectNextPeriod() {
         if (_uiState.value.canGoNext) {
-            loadInvoices(period = _uiState.value.currentPeriod.next(), isManualRefresh = false)
+            loadInvoices(period = _uiState.value.currentPeriod.next())
         }
-    }
-
-    fun refresh() {
-        loadInvoices(period = _uiState.value.currentPeriod, isManualRefresh = true)
     }
 
     /**
