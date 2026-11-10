@@ -103,7 +103,8 @@ class MainActivity : ComponentActivity() {
                                 val invoiceListViewModel = remember {
                                     InvoiceListViewModel(
                                         invoiceRepository = appContainer.invoiceRepository,
-                                        invoiceExportService = appContainer.invoiceExportService
+                                        invoiceExportService = appContainer.invoiceExportService,
+                                        exportRecordRepository = appContainer.exportRecordRepository
                                     )
                                 }
 
@@ -140,7 +141,8 @@ class MainActivity : ComponentActivity() {
                                                     invNum = route.invNum,
                                                     invDate = route.invDate,
                                                     invoiceRepository = appContainer.invoiceRepository,
-                                                    invoiceExportService = appContainer.invoiceExportService
+                                                    invoiceExportService = appContainer.invoiceExportService,
+                                                    exportRecordRepository = appContainer.exportRecordRepository
                                                 )
                                             }
                                             InvoiceDetailScreen(viewModel = invoiceDetailViewModel)

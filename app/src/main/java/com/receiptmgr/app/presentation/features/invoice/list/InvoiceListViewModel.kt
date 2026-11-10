@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.receiptmgr.app.domain.model.invoice.BillingPeriod
 import com.receiptmgr.app.domain.model.invoice.InvoiceHeader
 import com.receiptmgr.app.domain.model.invoice.PeriodInvoiceSummary
+import com.receiptmgr.app.domain.repository.ExportRecordRepository
 import com.receiptmgr.app.domain.repository.InvoiceRepository
 import com.receiptmgr.app.domain.service.InvoiceExportService
 import com.receiptmgr.app.presentation.notification.NotificationController
@@ -31,7 +32,8 @@ data class InvoiceListUiState(
     val periodErrors: Map<BillingPeriod, String> = emptyMap(),
     val loadingPeriods: Set<BillingPeriod> = emptySet(),
     val isOutdatedPeriods: Set<BillingPeriod> = emptySet(),
-    val scrollPositions: Map<BillingPeriod, ListScrollPosition> = emptyMap()
+    val scrollPositions: Map<BillingPeriod, ListScrollPosition> = emptyMap(),
+    val exportedAt: Map<String, Long> = emptyMap()
 ) {
     /** 當前畫面唯一合法的發票摘要，嚴格綁定 currentPeriod */
     val currentSummary: PeriodInvoiceSummary? get() = periodSummaries[currentPeriod]
@@ -48,6 +50,9 @@ data class InvoiceListUiState(
     /** 是否允許往後切換至未來月份 (上限鎖定至當前雙月) */
     val canGoNext: Boolean get() = currentPeriod < BillingPeriod.current()
 
+    /** 判斷特定發票號碼是否已傳送至 EquityTracker */
+    fun isInvoiceExported(invNum: String): Boolean = exportedAt.containsKey(invNum)
+
     // 兼容屬性
     val summary: PeriodInvoiceSummary? get() = currentSummary
     val isLoading: Boolean get() = isCurrentLoading
@@ -61,10 +66,12 @@ data class InvoiceListUiState(
  * 2. 嚴格期別槽位隔離，杜絕跨期別資料幽靈殘留。
  * 3. 封裝未來月份阻斷與歷史 5 期超期自動偵測。
  * 4. 支援發票表頭直接外部匯出記帳 (優先本地細項快取與保底機制)。
+ * 5. 響應式合併發票傳送狀態 (單一事實來源)。
  */
 class InvoiceListViewModel(
     private val invoiceRepository: InvoiceRepository,
-    private val invoiceExportService: InvoiceExportService
+    private val invoiceExportService: InvoiceExportService,
+    private val exportRecordRepository: ExportRecordRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InvoiceListUiState())
@@ -72,6 +79,11 @@ class InvoiceListViewModel(
 
     init {
         loadInvoices(period = _uiState.value.currentPeriod)
+        viewModelScope.launch {
+            exportRecordRepository.exportedAt.collect { map ->
+                _uiState.update { it.copy(exportedAt = map) }
+            }
+        }
     }
 
     /**
@@ -162,9 +174,17 @@ class InvoiceListViewModel(
      * 將指定發票表頭直接匯出至 EquityTracker 自動記帳。
      */
     fun exportInvoice(invoice: InvoiceHeader) {
+        val wasAlreadyExported = _uiState.value.isInvoiceExported(invoice.invNum)
         viewModelScope.launch {
             val success = invoiceExportService.exportToEquityTracker(invoice)
-            if (!success) {
+            if (success) {
+                val sellerHint = invoice.sellerName.take(8)
+                if (wasAlreadyExported) {
+                    NotificationController.showSuccess("已重新傳送「$sellerHint」至 EquityTracker")
+                } else {
+                    NotificationController.showSuccess("已傳送「$sellerHint」至 EquityTracker")
+                }
+            } else {
                 NotificationController.showError("尚未安裝 EquityTracker 記帳軟體")
             }
         }

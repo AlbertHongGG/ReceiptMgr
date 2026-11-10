@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -178,6 +179,7 @@ fun InvoiceListScreen(
                             ) { invoice ->
                                 InvoiceListItemCard(
                                     invoice = invoice,
+                                    isExported = uiState.isInvoiceExported(invoice.invNum),
                                     onClick = {
                                         navigator.push(
                                             AppRoute.InvoiceDetail(
@@ -420,9 +422,51 @@ private fun InvoiceListSectionHeader(
  * 3. 發票號碼與開立日期單行平鋪，絕不發生斷字折行。
  * 4. 僅顯示開立日期 (invoice.invDate)，不顯示秒數時間。
  */
+/**
+ * 發票已傳送至記帳 App 狀態標籤 (ExportStatusTag)。
+ */
+@Composable
+private fun ExportStatusTag(
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val bgColor = if (isDark) Color(0x2610B981) else Color(0x1A10B981)
+    val contentColor = AppColors.success
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bgColor)
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(5.dp)
+                .clip(CircleShape)
+                .background(contentColor)
+        )
+        Text(
+            text = "已傳送",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            color = contentColor
+        )
+    }
+}
+
+/**
+ * 精緻化發票卡片 (InvoiceListItemCard)。
+ * 規格保證：
+ * 1. 頂部中繼列：發票號碼與日期置頂，分享按鈕緊接於字串結尾（固定 24dp 絕不壓縮），右上角對齊「已傳送」狀態標籤。
+ * 2. 主內容列：商家抬頭完整顯示，支援自然折行；右側金額與箭頭獨立排版，徹底解決橫向寬度擠壓裁切問題。
+ * 3. 獨立事件處理：點擊分享按鈕只觸發外部記帳，絕不觸發卡片點擊跳轉。
+ */
 @Composable
 private fun InvoiceListItemCard(
     invoice: InvoiceHeader,
+    isExported: Boolean,
     onClick: () -> Unit,
     onExport: () -> Unit,
     modifier: Modifier = Modifier
@@ -445,28 +489,19 @@ private fun InvoiceListItemCard(
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
+            // 上層：中繼元資訊列 (號碼 · 日期 [分享按鈕] ── 右側 [已傳送 Tag])
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // 商家抬頭：完整顯示，支援自然折行，無 ellipsis
-                Text(
-                    text = invoice.sellerName.ifBlank { "電子發票" },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = textPrimary,
-                    lineHeight = 20.sp
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // 發票號碼、日期與快速記帳分享按鈕：單行平鋪
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f, fill = false)
                 ) {
                     Text(
                         text = invoice.formattedInvNum,
@@ -488,12 +523,10 @@ private fun InvoiceListItemCard(
                         color = textSecondary
                     )
 
-                    Spacer(modifier = Modifier.width(2.dp))
-
-                    // 記帳至 EquityTracker 快捷分享按鈕 (獨立點擊，不觸發進明細)
+                    // 緊接在字串結尾的快捷分享記帳按鈕 (固定 24dp 絕不壓縮，獨立點擊不觸發卡片跳轉)
                     Box(
                         modifier = Modifier
-                            .size(24.dp)
+                            .requiredSize(24.dp)
                             .clip(CircleShape)
                             .clickable(
                                 role = Role.Button,
@@ -503,35 +536,58 @@ private fun InvoiceListItemCard(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Share,
-                            contentDescription = "記帳至 EquityTracker",
+                            contentDescription = "傳送至 EquityTracker",
                             modifier = Modifier.size(13.dp),
-                            tint = textSecondary
+                            tint = if (isExported) AppColors.success else textSecondary
                         )
                     }
                 }
+
+                // 右上角狀態 Tag (未傳送時留白，已傳送時顯示綠色精緻微標籤)
+                if (isExported) {
+                    ExportStatusTag()
+                }
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // 金額與進入明細箭頭
+            // 下層：主內容列 (商家抬頭完整顯示 ── 右側金額與箭頭)
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 商家抬頭：享有左側完整寬度，支援自然折行，無 ellipsis
                 Text(
-                    text = "$${invoice.amount}",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textPrimary
+                    text = invoice.sellerName.ifBlank { "電子發票" },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = textPrimary,
+                    lineHeight = 20.sp,
+                    modifier = Modifier.weight(1f)
                 )
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "查看明細",
-                    modifier = Modifier.size(18.dp),
-                    tint = textSecondary
-                )
+                // 金額與進入明細箭頭
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$${invoice.amount}",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textPrimary
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "查看明細",
+                        modifier = Modifier.size(18.dp),
+                        tint = textSecondary
+                    )
+                }
             }
         }
     }

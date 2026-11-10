@@ -107,6 +107,7 @@ fun InvoiceDetailScreen(
                             // 數位熱感實體收據卡片
                             DigitalReceiptCard(
                                 detail = detail,
+                                isExported = uiState.isExported,
                                 onCopyInvoiceNumber = {
                                     clipboardManager.setText(AnnotatedString(detail.invNum))
                                     NotificationController.showSuccess("已複製發票號碼")
@@ -137,6 +138,7 @@ fun InvoiceDetailScreen(
 @Composable
 private fun DigitalReceiptCard(
     detail: InvoiceDetail,
+    isExported: Boolean,
     onCopyInvoiceNumber: () -> Unit,
     onExportToEquityTracker: () -> Unit,
     modifier: Modifier = Modifier
@@ -174,9 +176,9 @@ private fun DigitalReceiptCard(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Share,
-                contentDescription = "分享至 EquityTracker 記帳",
+                contentDescription = if (isExported) "已傳送至 EquityTracker (點擊可重新傳送)" else "分享至 EquityTracker 記帳",
                 modifier = Modifier.size(19.dp),
-                tint = textSecondary
+                tint = if (isExported) AppColors.success else textSecondary
             )
         }
 

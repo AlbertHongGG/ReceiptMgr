@@ -1,49 +1,38 @@
 package com.receiptmgr.app.data.export
 
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
 import com.receiptmgr.app.data.storage.InvoiceLocalDataSource
+import com.receiptmgr.app.domain.model.export.ExportTarget
 import com.receiptmgr.app.domain.model.integration.equitytracker.EquityTrackerPayloadMapper
 import com.receiptmgr.app.domain.model.invoice.InvoiceDetail
 import com.receiptmgr.app.domain.model.invoice.InvoiceHeader
+import com.receiptmgr.app.domain.repository.ExportRecordRepository
 import com.receiptmgr.app.domain.service.InvoiceExportService
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import com.receiptmgr.app.domain.service.ReceiptTransport
 
 /**
- * 透過 Android 系統 Intent / 定向傳輸實作發票外部匯出服務 (Adapter)。
+ * 預設發票外部匯出服務實作 (純 JVM 邏輯，不依賴 Android Context)。
+ *
+ * 職責：
+ * 1. 協調快取檢索與保底合成。
+ * 2. 呼叫 ReceiptTransport 傳輸。
+ * 3. 傳輸成功時原子化記錄已傳送狀態至 ExportRecordRepository。
  */
-class AndroidInvoiceExportService(
-    private val context: Context,
+class DefaultInvoiceExportService(
+    private val transport: ReceiptTransport,
     private val invoiceLocalDataSource: InvoiceLocalDataSource,
-    private val json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val exportRecordRepository: ExportRecordRepository
 ) : InvoiceExportService {
 
-    companion object {
-        const val TARGET_PACKAGE = "com.jasonhong.equitytracker"
-    }
-
-    override fun exportToEquityTracker(detail: InvoiceDetail): Boolean {
-        return try {
-            val dto = EquityTrackerPayloadMapper.toDto(detail)
-            val jsonString = json.encodeToString(dto)
-
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/json"
-                putExtra(Intent.EXTRA_TEXT, jsonString)
-                setPackage(TARGET_PACKAGE)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-            true
-        } catch (e: ActivityNotFoundException) {
-            false
+    override suspend fun exportToEquityTracker(detail: InvoiceDetail): Boolean {
+        val payload = EquityTrackerPayloadMapper.toDto(detail)
+        val success = transport.send(payload)
+        if (success) {
+            exportRecordRepository.markExported(detail.invNum, ExportTarget.EQUITY_TRACKER)
         }
+        return success
     }
 
     override suspend fun exportToEquityTracker(header: InvoiceHeader): Boolean {
-        // 1. 優先檢索本地快取細項
         val cachedDetail = invoiceLocalDataSource.getInvoiceDetail(header.invNum)
         val detailToExport = cachedDetail ?: InvoiceDetail(
             invNum = header.invNum,

@@ -3,6 +3,7 @@ package com.receiptmgr.app.presentation.features.invoice.detail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.receiptmgr.app.domain.model.invoice.InvoiceDetail
+import com.receiptmgr.app.domain.repository.ExportRecordRepository
 import com.receiptmgr.app.domain.repository.InvoiceRepository
 import com.receiptmgr.app.domain.service.InvoiceExportService
 import com.receiptmgr.app.presentation.notification.NotificationController
@@ -15,14 +16,16 @@ import kotlinx.coroutines.launch
 data class InvoiceDetailUiState(
     val detail: InvoiceDetail? = null,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isExported: Boolean = false
 )
 
 class InvoiceDetailViewModel(
     private val invNum: String,
     private val invDate: String,
     private val invoiceRepository: InvoiceRepository,
-    private val invoiceExportService: InvoiceExportService
+    private val invoiceExportService: InvoiceExportService,
+    private val exportRecordRepository: ExportRecordRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InvoiceDetailUiState(isLoading = true))
@@ -30,6 +33,11 @@ class InvoiceDetailViewModel(
 
     init {
         loadDetail(forceRefresh = false)
+        viewModelScope.launch {
+            exportRecordRepository.exportedAt.collect { map ->
+                _uiState.update { it.copy(isExported = map.containsKey(invNum)) }
+            }
+        }
     }
 
     fun loadDetail(forceRefresh: Boolean = false) {
@@ -62,9 +70,18 @@ class InvoiceDetailViewModel(
      */
     fun exportToEquityTracker() {
         val detail = _uiState.value.detail ?: return
-        val success = invoiceExportService.exportToEquityTracker(detail)
-        if (!success) {
-            NotificationController.showError("尚未安裝 EquityTracker 記帳軟體")
+        val wasAlreadyExported = _uiState.value.isExported
+        viewModelScope.launch {
+            val success = invoiceExportService.exportToEquityTracker(detail)
+            if (success) {
+                if (wasAlreadyExported) {
+                    NotificationController.showSuccess("已重新傳送至 EquityTracker")
+                } else {
+                    NotificationController.showSuccess("已傳送至 EquityTracker")
+                }
+            } else {
+                NotificationController.showError("尚未安裝 EquityTracker 記帳軟體")
+            }
         }
     }
 }

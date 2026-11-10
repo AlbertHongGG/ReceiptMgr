@@ -324,6 +324,7 @@ class InvoiceLocalDataSourceImpl(
             db.beginTransaction()
             try {
                 db.delete(InvoiceDatabaseHelper.TABLE_INVOICE_ITEMS, null, null)
+                db.delete(InvoiceDatabaseHelper.TABLE_INVOICE_EXPORT_RECORDS, null, null)
                 db.delete(InvoiceDatabaseHelper.TABLE_INVOICES, null, null)
                 db.delete(InvoiceDatabaseHelper.TABLE_PERIOD_METADATA, null, null)
                 db.setTransactionSuccessful()

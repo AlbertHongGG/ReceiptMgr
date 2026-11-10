@@ -21,7 +21,7 @@ class InvoiceDatabaseHelper(context: Context) : SQLiteOpenHelper(
 
     companion object {
         const val DATABASE_NAME = "receipt_mgr_invoices.db"
-        const val DATABASE_VERSION = 1
+        const val DATABASE_VERSION = 2
 
         // 資料表: invoices
         const val TABLE_INVOICES = "invoices"
@@ -55,6 +55,12 @@ class InvoiceDatabaseHelper(context: Context) : SQLiteOpenHelper(
         const val COL_META_LAST_SYNC_TIME = "last_sync_time"
         const val COL_META_TOTAL_INVOICES = "total_invoices"
         const val COL_META_TOTAL_AMOUNT = "total_amount"
+
+        // 資料表: invoice_export_records
+        const val TABLE_INVOICE_EXPORT_RECORDS = "invoice_export_records"
+        const val COL_EXPORT_INV_NUM = "inv_num"
+        const val COL_EXPORT_TARGET = "target"
+        const val COL_EXPORT_EXPORTED_AT = "exported_at"
     }
 
     override fun onConfigure(db: SQLiteDatabase) {
@@ -114,9 +120,28 @@ class InvoiceDatabaseHelper(context: Context) : SQLiteOpenHelper(
             );
             """.trimIndent()
         )
+
+        createExportRecordsTable(db)
+    }
+
+    private fun createExportRecordsTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS $TABLE_INVOICE_EXPORT_RECORDS (
+                $COL_EXPORT_INV_NUM TEXT NOT NULL,
+                $COL_EXPORT_TARGET TEXT NOT NULL,
+                $COL_EXPORT_EXPORTED_AT INTEGER NOT NULL,
+                PRIMARY KEY($COL_EXPORT_INV_NUM, $COL_EXPORT_TARGET),
+                FOREIGN KEY($COL_EXPORT_INV_NUM) REFERENCES $TABLE_INVOICES($COL_INV_NUM) ON DELETE CASCADE
+            );
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_export_records_target ON $TABLE_INVOICE_EXPORT_RECORDS($COL_EXPORT_TARGET);")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // 未來資料庫結構升版處理
+        if (oldVersion < 2) {
+            createExportRecordsTable(db)
+        }
     }
 }

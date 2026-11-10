@@ -14,7 +14,7 @@ interface InvoiceExportService {
      * @param detail 發票完整明細
      * @return 若成功啟動 EquityTracker 返回 true；若未安裝該應用返回 false
      */
-    fun exportToEquityTracker(detail: InvoiceDetail): Boolean
+    suspend fun exportToEquityTracker(detail: InvoiceDetail): Boolean
 
     /**
      * 將指定發票表頭傳輸至 EquityTracker 進行自動記帳 (清單頁使用)。
