@@ -264,17 +264,7 @@ private fun DigitalReceiptCard(
 
             Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = dividerColor, thickness = 1.dp)
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 品項清單表格
-            Text(
-                text = "消費明細",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = textPrimary
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             // 表頭
             Row(
@@ -284,9 +274,27 @@ private fun DigitalReceiptCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "品名", fontSize = 12.sp, color = textSecondary, modifier = Modifier.weight(2.2f))
-                Text(text = "數量", fontSize = 12.sp, color = textSecondary, textAlign = TextAlign.Center, modifier = Modifier.weight(0.8f))
-                Text(text = "單價", fontSize = 12.sp, color = textSecondary, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                Text(text = "小計", fontSize = 12.sp, color = textSecondary, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                Text(
+                    text = "數量",
+                    fontSize = 12.sp,
+                    color = textSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(0.8f)
+                )
+                Text(
+                    text = "單價",
+                    fontSize = 12.sp,
+                    color = textSecondary,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "小計",
+                    fontSize = 12.sp,
+                    color = textSecondary,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
